@@ -6,8 +6,8 @@
 
 | 模块 | 路径 | 端口 | 技术栈 |
 |---|---|---|---|
-| 后端 | `C:\Users\Administrator\Desktop\java3-main\java3-main\springBootTest`（旧的 `D:\workSpace\springBootTest` 是更早的副本，以本目录为准） | 8081 | Spring Boot 3.4.5 + MyBatis-Plus 3.5.7 + MySQL 8.0，Java 17（本机装的 Zulu 21 可跑） |
-| 前端 | `C:\Users\Administrator\Desktop\java3-main\java3-main\vue-dream-login` | 5173 | Vue 3.5 + Vite 6 |
+| 后端 | `D:\workSpace\java3\java3-main\java3-main\springBootTest`（旧的 `D:\workSpace\springBootTest` 是更早的副本，以本目录为准） | 8081 | Spring Boot 3.4.5 + MyBatis-Plus 3.5.7 + MySQL 8.0，Java 17（本机装的 Zulu 21 可跑） |
+| 前端 | `D:\workSpace\java3\java3-main\java3-main\vue-dream-login` | 5173 | Vue 3.5 + Vite 6 |
 | 数据库 | 本机 MySQL 8.0 | 3306 | 库 `dream_login`；登录表 `t_user`，首页表 `t_dream` / `t_dream_category` / `t_dream_like` / `t_dream_favorite` / `t_dream_search_log`；账号 `root` / 密码 `123456` |
 
 ## 二、快速启动（每次开机后）

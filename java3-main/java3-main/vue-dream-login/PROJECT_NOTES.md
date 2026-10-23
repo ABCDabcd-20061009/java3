@@ -70,7 +70,7 @@
 
 ## 五、前端要点
 
-- `src/api.js` — 接口封装，`BASE = /api`（可用 `.env` 的 `VITE_API_BASE` 覆盖）。首页相关：`fetchHomeOverview` / `fetchHomeFeed` / `searchDreams`（`searchAll` 是它的别名）/ `fetchCategories` / `fetchHotKeywords` / `fetchDreamDetail` / `toggleDreamLike` / `toggleDreamFavorite` / `fetchMyFavorites` / `publishDream`；登录态相关会自动带 `Authorization: Bearer <token>`（后端已校验，401 会清会话）
+- `src/api.js` — 接口封装，`BASE = /api`（可用 `.env` 的 `VITE_API_BASE` 覆盖）。首页相关：`fetchHomeOverview` / `fetchHomeFeed` / `searchDreams`（`searchAll` 是它的别名）/ `fetchCategories` / `fetchHotKeywords` / `fetchDreamDetail` / `toggleDreamLike` / `toggleDreamFavorite` / `fetchMyFavorites` / `publishDream`；**广播剧相关**：`fetchDramaList` / `fetchDramaDetail` / `fetchDramaCategories`（调 `/api/drama/*`，全部匿名）；登录态相关会自动带 `Authorization: Bearer <token>`（后端已校验，401 会清会话）
 - `src/components/LoginCard.vue` — 登录/注册双表单：字段级内联校验、密码强度条、验证码倒计时、用户协议勾选；登录成功 `emit('login-success', {user, remember})`
 - `src/components/DreamBackground.vue` — 全站背景动画层：粉金光晕漂移 + 满天星星闪烁（小星点 + 四角星光，随机节奏 twinkle）+ 气泡缓慢上升流动；App.vue 背景为粉金色渐变（日间 #ffdcea→#fff1dd，夜空深紫底 + 粉金光晕）
   - ⚠️ 坑：星星/气泡是 JS `document.createElement` 动态创建的，**没有** scoped 的 `data-v` 属性，样式选择器必须写成 `.stars :deep(.star)`、`.bubbles :deep(.bubble)`（编译成 `.stars[data-v] .star` 后代选择器）。直接写 `.star {}` 会被编译成 `.star[data-v]` 导致样式完全不生效、元素不可见——旧版花瓣/气泡长期不可见就是这个原因
@@ -86,6 +86,12 @@
   - 互动接口 401 会自动 `emit('logout')` 回登录页
   - 后端不可用时自动降级演示模式（本地 `DREAM_LIB`，卡片 id 取负数以便区分；演示模式下收藏不可用）
 - `src/components/HomeCard.vue` — 旧版登录后欢迎卡（已被 HomePage 取代，保留未删）
+- `src/components/DramaPage.vue` — **广播剧（首页导航「广播剧」接管主区域时的视图）**：
+  - 头部：标题 + 广播剧搜索框 + 「热门平台」筛选 chips（全部/喜马拉雅/猫耳FM/晋江文学城/蜻蜓FM/凯叔讲故事）
+  - 列表区：分类 tab（含数量，来自 `/api/drama/categories`）+ 「最新/最热」排序 + 卡片网格 + 「加载更多」分页（`/api/drama/list`，支持 keyword/category/platform/sort）
+  - 卡片：无封面时按 `categoryCode` 配渐变色块 + 首字水印 + 分类标签 + **「播放」角标** + **来源平台角标** + 时长/浏览/点赞；点卡片打开**播放器弹层**
+  - 播放器弹层：主播放源 `<video :src="videoUrl" controls autoplay playsinline>`（**有画面也有声音**，弹层出现尝试自动播放，被拦截时交还控件）；`videoUrl` 为空回退 `<audio :src="audioUrl">`；都无则提示无媒体；详情走 `/api/drama/detail`（浏览量 +1 回写列表）
+  - 后端不可用时自动降级演示模式（本地 `DRAMA_LIB` 9 部，卡片 id 取负；媒体用公开示例视频，保证可播放可演示）
 - `src/App.vue` — 会话管理：记住我 → localStorage，否则 → sessionStorage（键 `dream-user`），刷新自动恢复，退出清除；同时定义全站主题变量（`:root` 日间 / `.app-root.dark` 夜空），新增 `--panel-bg` 给弹层做不透明底色（scoped 样式里写 `:global(.app-root.dark) xxx` **无效**，会被编译器丢掉，主题差异一律走变量）
 - `vite.config.js` — `/api` 代理到 `http://localhost:8081`
 
@@ -106,6 +112,7 @@
 - ~~登录成功后的主页~~（已完成 HomePage：导航栏 + 搜索栏 + 首页展示流）
 - ~~首页搜索后端接口~~（已完成：`POST /api/search`、`/api/home/*`、`/api/dream/*`，已做接口自测）
 - ~~接口无鉴权 / 收藏功能~~（后端 JWT 已落地，点赞与收藏需登录；前端「我的收藏」已接通真实接口）
+- ~~广播剧功能~~（已完成：首页导航「广播剧」→ `DramaPage.vue`，可挑选并播放热门平台小说广播剧，`fetchDramaList`/`fetchDramaDetail`/`fetchDramaCategories` 已封装）
 - 「梦境广场 / 梦境手记 / 个人中心」仍是占位页；`publishDream()` 已封装但还没有发布页 UI
 - token 无刷新机制，过期只能重新登录（默认 7 天）
 - 忘记密码、第三方登录是占位

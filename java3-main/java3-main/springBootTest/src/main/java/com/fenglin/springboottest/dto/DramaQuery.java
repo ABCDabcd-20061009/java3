@@ -17,6 +17,9 @@ public class DramaQuery {
     /** 分类筛选：不传或 "全部" 表示不限；可选 悬疑/言情/科幻/治愈/古风/儿童 */
     private String category;
 
+    /** 来源平台筛选：不传或 "全部" 表示不限；可选 喜马拉雅/猫耳FM/晋江文学城/蜻蜓FM 等 */
+    private String platform;
+
     /** 排序：newest(默认，按时间倒序) / hot(按浏览量倒序) */
     private String sort = "newest";
 
@@ -53,6 +56,14 @@ public class DramaQuery {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
     }
 
     public String getSort() {

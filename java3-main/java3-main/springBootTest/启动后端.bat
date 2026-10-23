@@ -21,14 +21,12 @@ echo   Pink-Gold Dream backend starter
 echo   Project dir: %~dp0
 echo ============================================
 
-rem ===== 1. Check Java =====
-if not defined JAVA_HOME (
-    if exist "C:\Program Files\Zulu\zulu-21" set "JAVA_HOME=C:\Program Files\Zulu\zulu-21"
-)
+rem ===== 1. Check Java (prefer known Zulu JDK; a JRE-only JAVA_HOME breaks spring-boot:run) =====
+if exist "C:\Program Files\Zulu\zulu-21" set "JAVA_HOME=C:\Program Files\Zulu\zulu-21"
 java -version >nul 2>&1
 if errorlevel 1 (
     echo [ERR] Java not found. Install JDK 17+ or set JAVA_HOME.
-    >>"%LOGFILE%" echo [ERR] Java 不可用  JAVA_HOME=%JAVA_HOME%
+    >>"%LOGFILE%" echo [ERR] Java unavailable JAVA_HOME=%JAVA_HOME%
     pause
     exit /b 1
 )
@@ -87,6 +85,21 @@ if errorlevel 1 (
 echo [4/5] table t_dream ready
 >>"%LOGFILE%" echo [4/5] t_dream OK
 
+rem ===== 4.5 Ensure broadcast-drama tables: t_drama / t_drama_category =====
+"%MYSQL_EXE%" -uroot -p123456 dream_login -e "SELECT 1 FROM t_drama LIMIT 1" >nul 2>&1
+if errorlevel 1 (
+    echo [INFO] drama tables missing, running dream_drama.sql...
+    "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 dream_login < "%~dp0sql\dream_drama.sql"
+    if errorlevel 1 (
+        echo [ERR] t_drama init failed.
+        >>"%LOGFILE%" echo [ERR] dream_drama.sql 执行失败
+        pause
+        exit /b 1
+    )
+)
+echo [4.5/5] table t_drama ready
+>>"%LOGFILE%" echo [4.5/5] t_drama OK
+
 rem ===== 5. Locate Maven & Start Spring Boot =====
 set "MVN_BIN="
 rem 1) 直接按已知缓存路径命中（最快、最可靠）
@@ -110,7 +123,7 @@ if not defined MVN_BIN (
 )
 >>"%LOGFILE%" echo [5/5] Maven定位结果=%MVN_BIN%
 if not defined MVN_BIN (
-    echo [ERR] Maven not found. Install Maven or restore the project mvnw wrapper (.mvn).
+    echo [ERR] Maven not found. Install Maven or restore the project mvnw wrapper.
     >>"%LOGFILE%" echo [ERR] Maven 定位失败：缓存/mvnw/PATH 均未命中
     pause
     exit /b 1

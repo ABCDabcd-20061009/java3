@@ -27,6 +27,8 @@ public class DramaVO {
     private String categoryCode;
     /** 标签数组（数据库里是逗号分隔字符串） */
     private List<String> tags;
+    /** 来源平台：喜马拉雅 / 猫耳FM / 晋江文学城 / 蜻蜓FM 等 */
+    private String platform;
     /** 视频媒体地址（主播放源，有画面也有声音） */
     private String videoUrl;
     /** 纯音频地址（无视频时回退） */
@@ -50,6 +52,7 @@ public class DramaVO {
         vo.coverUrl = d.getCoverUrl();
         vo.category = d.getCategory();
         vo.tags = splitTags(d.getTags());
+        vo.platform = d.getPlatform();
         vo.videoUrl = d.getVideoUrl();
         vo.audioUrl = d.getAudioUrl();
         vo.posterUrl = d.getPosterUrl();
@@ -148,6 +151,14 @@ public class DramaVO {
 
     public void setTags(List<String> tags) {
         this.tags = tags;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
     }
 
     public String getVideoUrl() {

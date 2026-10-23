@@ -151,3 +151,21 @@ export function fetchMyDreams({ page = 1, size = 8, keyword = '', sort = 'newest
 export function fetchUserProfile() {
   return request('/user/profile', {})
 }
+
+/* ==================== 广播剧 ==================== */
+
+// 广播剧列表（分页）：{ page, size, keyword, category, platform, sort }  sort: newest | hot
+// 返回 data = { list, total, page, size, pages, hasMore }
+export function fetchDramaList({ page = 1, size = 8, keyword = '', category = '', platform = '', sort = 'newest' } = {}) {
+  return request('/drama/list', { page, size, keyword, category, platform, sort })
+}
+
+// 广播剧详情（浏览量 +1，返回 videoUrl / audioUrl / posterUrl 等播放源）
+export function fetchDramaDetail({ id }) {
+  return request('/drama/detail', { id })
+}
+
+// 广播剧分类导航（含各分类数量）
+export function fetchDramaCategories() {
+  return request('/drama/categories', {})
+}

@@ -22,12 +22,16 @@ if errorlevel 1 (
 )
 echo [1/2] Node.js 检查通过
 
-rem ===== 2. node_modules 不存在则安装依赖（国内镜像） =====
+rem ===== 2. install deps if node_modules missing (CN mirror, fallback to npmjs) =====
 if not exist "%~dp0node_modules\" (
-    echo [提示] node_modules 不存在，正在安装依赖（约 1 分钟）...
+    echo [info] node_modules missing, installing deps ...
     call npm install --registry=https://registry.npmmirror.com
     if errorlevel 1 (
-        echo [错误] 依赖安装失败
+        echo [warn] npmmirror failed, try registry.npmjs.org ...
+        call npm install --registry=https://registry.npmjs.org
+    )
+    if errorlevel 1 (
+        echo [error] dependency install failed
         pause
         exit /b 1
     )

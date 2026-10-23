@@ -67,7 +67,21 @@
 - 点赞/收藏各有唯一键 `(dream_id,user_id)` 防重复；并发重复插入被捕获，计数不会叠加
 - 搜索关键词里的 `%` `_` `\` 已做转义，避免通配符注入式全表匹配
 
-前端无后端时会自动进入「演示模式」：`api.js` 里网络错误带 `isNetwork=true` 标记，仅此时降级本地生成验证码。
+### 广播剧接口（首页「广播剧」功能，全部匿名可访问，POST + JSON，复用 `{code,message,data}`）
+
+| 接口 | 请求体 | 返回 data |
+|---|---|---|
+| `POST /api/drama/list` | `{page,size,keyword?,category?,platform?,sort?}` | `{list,total,page,size,pages,hasMore}` |
+| `POST /api/drama/detail` | `{id}` | `DramaVO`（浏览量原子 +1，含 `videoUrl`/`audioUrl`/`posterUrl`/`categoryCode`/`platform`） |
+| `POST /api/drama/categories` | `{}` | `[{code,name,icon,count}]` |
+
+- 列表项 `DramaVO` 字段：`id,title,summary,coverUrl,category,categoryCode,tags[],platform,videoUrl,audioUrl,posterUrl,duration,views,likes,createTime,timeText`
+- `category` 传分类名（悬疑）或编码（suspense），不传/`全部` 不限；`platform` 传来源平台（喜马拉雅/猫耳FM/晋江文学城/蜻蜓FM/凯叔讲故事），不传/`全部` 不限；`sort`：`newest`(默认)/`hot`
+- 广播剧为公开内容，**浏览/详情/分类均匿名可访问**（不在 `JwtInterceptor.AUTH_REQUIRED` 里）
+- 播放源：`videoUrl` 为主播放源（有画面也有声音），为空时前端回退 `audioUrl` 纯音频；种子数据 `videoUrl` 用公开示例视频，上线前替换为真实广播剧媒体
+- 建表脚本 `sql/dream_drama.sql`（幂等：建 `t_drama` + `t_drama_category` + 9 条种子），启动脚本第 4.5 步已自动执行（t_drama 缺失时）
+
+前端无后端时会自动进入「演示模式」：`api.js` 里网络错误带 `isNetwork=true` 标记，仅此时降级本地生成验证码 / 本地梦境库 / 本地广播剧库。
 
 ## 四、后端代码地图（包 com.fenglin.springboottest）
 
@@ -100,6 +114,15 @@
   - ⚠️ 纯 Mock 单测里 MP 的 lambda 列名缓存是空的，一旦物化 SQL 片段（`getCustomSqlSegment()`）就抛 `can not find lambda cache for this entity`；`@BeforeAll` 里用 `TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "unit-test"), Dream.class)` 初始化即可。另注意 lambda 条件是**惰性**的：不先物化 SQL 就读 `getParamNameValuePairs()` 会拿到空 map
 - `sql/dream_login.sql` — 建库 + `t_user` + 3 个演示账号（梦梦/星星/夜风，密码都是 `abc123456`，哈希与 `PasswordUtil` 的盐一致）
 - `sql/dream_home.sql` — 建 `t_dream`（12 条种子）/ `t_dream_category`（4 条）/ `t_dream_like`（5 条）/ `t_dream_search_log`（14 条）/ `t_dream_favorite`（5 条）
+- `sql/dream_drama.sql` — 建 `t_drama`（9 条广播剧种子，含 `videoUrl` 公开示例视频）/ `t_drama_category`（6 条：悬疑/言情/科幻/治愈/古风/儿童）；启动脚本第 4.5 步自动执行（t_drama 缺失时）
+
+**广播剧（新增，首页「广播剧」功能，全部匿名可访问，零 XML）**
+- `controller/DramaController.java` — `/api/drama/list`、`/detail`、`/categories`
+- `service/DramaService.java` + `service/impl/DramaServiceImpl.java` — 列表（关键词/分类/平台/排序/分页，只取 status=1 未删除）、详情（浏览量原子 +1）、分类导航（含各分类数量）；`applyKeyword`/`applyCategory`/`applyPlatform`/`applySort` 复用梦境那套转义与排序约定；`categoryCode` 由分类字典 name→code 映射（兜底内置映射）
+- `mapper/DramaMapper.java`、`DramaCategoryMapper.java`
+- `entity/Drama.java`（`platform` 来源平台字段）、`DramaCategory.java`
+- `dto/DramaQuery.java`（page/size/keyword/category/platform/sort）、`DramaDetailDTO.java`
+- `vo/DramaVO.java`（列表+详情统一视图，含 `videoUrl`/`audioUrl`/`posterUrl`/`categoryCode`/`platform`）
 
 ## 五、前端要点
 
@@ -133,6 +156,7 @@
 - ~~无单元测试~~（已完成：`DreamServiceImplTest` 20 例 + `JwtUtilTest` 5 例 = 26 例，`mvn.cmd -o test` 全绿）
 - ~~创作闭环 + 个人中心后端~~（已完成：`/api/dream/update`、`/api/dream/delete`、`/api/user/dreams`、`/api/user/profile`，含「只能改/删自己内容」的归属校验）
 - ~~「梦境手记 / 个人中心」占位页~~（已完成：前端发布/编辑弹层 + 个人中心视图，见前端 `PROJECT_NOTES.md`）
+- ~~广播剧功能~~（已完成：`t_drama` / `t_drama_category` + `DramaController` / `DramaServiceImpl` + 前端 `DramaPage.vue`，首页导航「广播剧」可挑选并播放，含分类/平台/排序/搜索，播放器 video 有画面也有声音、audio 回退；匿名可访问）
 - 剩余占位：「帮助中心」页；导航里的「梦境广场」目前等价于首页精选流
 - token 没有刷新/注销机制（改密码或想强制下线只能换 `dream.jwt.secret`）；`dream.jwt.secret` 是开发默认值，上线前必须换成随机长串
 - 忘记密码、第三方登录是占位

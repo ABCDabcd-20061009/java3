@@ -31,6 +31,9 @@ public class Drama {
     /** 标签，逗号分隔 */
     private String tags;
 
+    /** 来源平台：喜马拉雅 / 猫耳FM / 晋江文学城 / 蜻蜓FM 等热门平台 */
+    private String platform;
+
     /** 视频媒体地址（主播放源，有画面也有声音） */
     private String videoUrl;
 
@@ -106,6 +109,14 @@ public class Drama {
 
     public void setTags(String tags) {
         this.tags = tags;
+    }
+
+    public String getPlatform() {
+        return platform;
+    }
+
+    public void setPlatform(String platform) {
+        this.platform = platform;
     }
 
     public String getVideoUrl() {

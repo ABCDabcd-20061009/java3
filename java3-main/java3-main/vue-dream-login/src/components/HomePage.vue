@@ -25,8 +25,8 @@
       </div>
     </nav>
 
-    <!-- ===== 页面内容 ===== -->
-    <div class="content">
+    <!-- ===== 页面内容（广播剧视图时隐藏，由 DramaPage 接管） ===== -->
+    <div class="content" v-if="view !== 'drama'">
       <!-- 搜索区 -->
       <section class="hero">
         <h1 class="hero-title">粉金梦境</h1>
@@ -247,6 +247,9 @@
       <footer class="footer">粉 金 梦 境 · 愿 你 夜 夜 好 梦 ✦</footer>
     </div>
 
+    <!-- ===== 广播剧视图（首页导航「广播剧」时接管主区域） ===== -->
+    <DramaPage v-if="view === 'drama'" />
+
     <!-- ===== 梦境详情弹层 ===== -->
     <div class="detail-mask" v-if="detail" @click.self="closeDetail">
       <div class="detail-panel">
@@ -363,6 +366,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import DramaPage from './DramaPage.vue'
 import {
   fetchHomeOverview,
   fetchHomeFeed,
@@ -388,6 +392,7 @@ const initial = ref((props.user.username || '梦').trim().charAt(0) || '梦')
 /* ---- 导航菜单 ---- */
 const menus = [
   { key: 'square', label: '梦境广场' },
+  { key: 'drama', label: '广播剧' },
   { key: 'favorites', label: '我的收藏' },
   { key: 'profile', label: '个人中心' },
   { key: 'help', label: '帮助中心' }
@@ -1015,6 +1020,10 @@ function onMenu(key) {
     resetFeed()
     return
   }
+  if (key === 'drama') {
+    view.value = 'drama'
+    return
+  }
   if (key === 'favorites') { openFavorites(); return }
   if (key === 'profile') { openProfile(); return }
   flash('「帮助中心」页面建设中，敬请期待 ✦')
@@ -1041,6 +1050,11 @@ const shortcuts = [
     title: '个人中心',
     desc: '我的梦境与创作数据',
     icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
+  },
+  {
+    title: '广播剧',
+    desc: '热门平台小说改编，声画同享',
+    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 5l9 4.5v5L12 19l-9-4.5z"/><path d="M3 9.5 12 14l9-4.5"/><path d="M12 14v5"/></svg>`
   }
 ]
 
@@ -1063,6 +1077,11 @@ function onShortcut(s) {
   }
   if (s.title === '个人中心') {
     openProfile()
+    return
+  }
+  if (s.title === '广播剧') {
+    view.value = 'drama'
+    flash('已打开广播剧 ✦')
     return
   }
   flash(`「${s.title}」页面建设中，敬请期待 ✦`)

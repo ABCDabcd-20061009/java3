@@ -11,6 +11,11 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true
+      },
+      // 广播剧媒体（视频/音频）同样由后端提供，避免依赖外网地址
+      '/media': {
+        target: 'http://localhost:8081',
+        changeOrigin: true
       }
     }
   }

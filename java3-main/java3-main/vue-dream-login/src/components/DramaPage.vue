@@ -104,11 +104,82 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
 
-        <div class="player-media">
-          <video v-if="player.videoUrl" ref="videoEl" class="player-video" :src="player.videoUrl"
-                 :poster="player.posterUrl || player.coverUrl" controls autoplay playsinline preload="metadata"></video>
-          <audio v-else-if="player.audioUrl" ref="audioEl" class="player-audio" :src="player.audioUrl" controls autoplay></audio>
-          <div v-else class="no-media">该广播剧暂无可播放的媒体，请稍后再来 ✦</div>
+        <!-- 播放模式切换：既有剧本又有视频时才出现，默认进剧场 -->
+        <div class="play-modes" v-if="hasScript && hasVideoSource">
+          <button class="mode-btn" :class="{ active: playMode === 'theatre' }" type="button" @click="setMode('theatre')">声画剧场</button>
+          <button class="mode-btn" :class="{ active: playMode === 'video' }" type="button" @click="setMode('video')">视频画面</button>
+        </div>
+
+        <div class="player-media" :class="{ 'is-theatre': playMode === 'theatre' }">
+          <!-- ===== 声画剧场：逐句朗读本剧小说片段 ===== -->
+          <div class="theatre" v-if="playMode === 'theatre'" :class="'theatre-' + (player.categoryCode || 'other')">
+            <span class="theatre-tint" :style="{ background: tintBg }"></span>
+            <span class="theatre-glow"></span>
+
+            <!-- 舞台：左=该角色专属画面，右=台词字幕 -->
+            <div class="theatre-stage">
+              <div class="stage-art">
+                <DramaVisual :key="curVisual.name" :visual="curVisual" :speaking="speaking" size="stage" />
+                <span class="stage-tag">{{ curVisual.kind === 'scene' ? '场景' : (curVisual.role || '角色') }}</span>
+              </div>
+              <div class="stage-caption">
+                <p class="line-speaker" v-if="curLine && curLine.speaker">
+                  <span class="sp-name">{{ curLine.speaker }}</span>
+                  <span class="sp-role" v-if="curVisual.desc">{{ curVisual.desc }}</span>
+                </p>
+                <p class="line-text" :key="lineIndex">{{ curLine ? curLine.text : '' }}</p>
+              </div>
+            </div>
+
+            <!-- 角色栏：本剧所有人物，当前说话者高亮，点击可跳到他的台词 -->
+            <div class="theatre-cast" v-if="castList.length">
+              <button v-for="p in castList" :key="p.name" type="button" class="cast-chip"
+                      :class="{ active: p.name === curSpeaker, mute: p.name !== curSpeaker }"
+                      :title="p.desc || p.name" @click="jumpToSpeaker(p.name)">
+                <span class="cast-av"><DramaVisual :visual="p" :speaking="false" size="chip" /></span>
+                <span class="cast-name">{{ p.name }}</span>
+              </button>
+            </div>
+
+            <div class="theatre-foot">
+              <button class="tf-btn primary" type="button" @click="toggleSpeak">{{ speaking ? '暂停' : '播放' }}</button>
+              <button class="tf-btn" type="button" @click="prevLine">上一句</button>
+              <button class="tf-btn" type="button" @click="nextLine">下一句</button>
+              <span class="tf-prog">{{ lineIndex + 1 }} / {{ scriptLines.length }}</span>
+              <label class="tf-rate">语速
+                <input type="range" min="0.6" max="1.6" step="0.1" v-model.number="speakRate" @change="onRateChange" />
+              </label>
+            </div>
+            <p class="theatre-tip" v-if="!ttsReady">当前浏览器没有可用的中文语音，已改为自动翻页（仍可逐句阅读）</p>
+          </div>
+
+          <!-- ===== 视频 / 音频播放 ===== -->
+          <template v-else>
+            <video v-if="player.videoUrl && !forceAudio" :key="'v' + mediaKey" ref="videoEl" class="player-video"
+                   :src="player.videoUrl" :poster="player.posterUrl || player.coverUrl"
+                   controls playsinline preload="metadata"
+                   @error="onMediaError('video')" @waiting="onMediaWaiting"
+                   @canplay="onMediaReady" @playing="onMediaReady"></video>
+            <audio v-else-if="player.audioUrl" :key="'a' + mediaKey" ref="audioEl" class="player-audio"
+                   :src="player.audioUrl" controls preload="metadata"
+                   @error="onMediaError('audio')" @waiting="onMediaWaiting"
+                   @canplay="onMediaReady" @playing="onMediaReady"></audio>
+            <div v-else class="no-media">该广播剧暂无可播放的媒体，请稍后再来 ✦</div>
+
+            <!-- 媒体状态层：加载中 / 加载失败（可重试或回退音频），避免出现「点了没反应」 -->
+            <div class="media-state" v-if="mediaState === 'loading'">
+              <span class="spinner"></span>
+              <span>正在加载媒体…</span>
+            </div>
+            <div class="media-state is-error" v-else-if="mediaState === 'error'">
+              <p class="err-title">媒体加载失败</p>
+              <p class="err-desc">{{ mediaErrorText }}</p>
+              <div class="err-actions">
+                <button class="err-btn" type="button" @click="retryMedia">重新加载</button>
+                <button class="err-btn ghost" type="button" v-if="player.audioUrl" @click="useAudio">改用音频播放</button>
+              </div>
+            </div>
+          </template>
         </div>
 
         <div class="player-meta">
@@ -128,7 +199,15 @@
         <div class="tags detail-tags" v-if="player.tags && player.tags.length">
           <span class="tag" v-for="t in player.tags" :key="t">#{{ t }}</span>
         </div>
-        <p class="player-tip">提示：视频自带声音与画面，若未自动播放请点击播放按钮 🔊</p>
+        <p class="player-tip">
+          <template v-if="playMode === 'theatre'">
+            声画剧场：逐句朗读本剧小说片段，可调语速、前后翻句 ✦
+          </template>
+          <template v-else>
+            提示：视频为画面占位素材，若未自动播放请点击播放按钮 🔊
+            <span v-if="mutedHint" class="tip-muted">（浏览器拦截了带声自动播放，已先静音播放，点一下音量图标即可恢复 🔈）</span>
+          </template>
+        </p>
       </div>
     </div>
 
@@ -137,8 +216,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { fetchDramaList, fetchDramaDetail, fetchDramaCategories } from '../api'
+import { scriptOf, castOf, visualOf } from '../data/dramaScripts'
+import DramaVisual from './DramaVisual.vue'
 
 /* ---- 轻提示 ---- */
 const toastMsg = ref('')
@@ -171,6 +252,135 @@ const isDemo = ref(false)
 const player = ref(null)
 const videoEl = ref(null)
 const audioEl = ref(null)
+
+/* ---- 播放器媒体状态 ---- */
+const mediaState = ref('')          // '' | 'loading' | 'error'
+const mediaErrorText = ref('')
+const forceAudio = ref(false)       // 视频失败后手动回退到音频
+const mediaKey = ref(0)             // 变更即强制重建 media 元素（重试用）
+const mutedHint = ref(false)        // 是否被浏览器静音自动播放
+
+/* ---- 声画剧场：逐句朗读小说正文 ---- */
+/* 示例视频只是画面占位、与小说内容无关，真正的内容在剧本里，所以默认走剧场模式 */
+const playMode = ref('video')       // 'video' | 'theatre'
+const lineIndex = ref(0)
+const speaking = ref(false)
+const speakRate = ref(1)
+const ttsReady = ref(true)          // 浏览器是否有可用的中文语音
+let speakTimer = null
+
+const scriptLines = computed(() => (player.value ? scriptOf(player.value.title) : []))
+const hasScript = computed(() => scriptLines.value.length > 0)
+const hasVideoSource = computed(() => !!(player.value && (player.value.videoUrl || player.value.audioUrl)))
+const curLine = computed(() => scriptLines.value[lineIndex.value] || null)
+
+/* ---- 每个角色一套专属画面：说话人 → 该角色立绘；旁白 → 本剧场景画面 ---- */
+const castList = computed(() => (player.value ? castOf(player.value.title) : []))
+const curVisual = computed(() => visualOf(player.value ? player.value.title : '', curLine.value))
+const curSpeaker = computed(() => (curLine.value && curLine.value.speaker) || '')
+const tintBg = computed(() => `linear-gradient(135deg, ${curVisual.value.color}E6, ${curVisual.value.color}66)`)
+
+/* 点角色头像 → 跳到他第一次开口的那句（方便对照人物看画面） */
+function jumpToSpeaker(name) {
+  const i = scriptLines.value.findIndex(l => l && l.speaker === name)
+  if (i < 0) return
+  const was = speaking.value
+  stopSpeak()
+  lineIndex.value = i
+  if (was) speakCurrent()
+}
+
+function pickVoice() {
+  const synth = window.speechSynthesis
+  if (!synth) return null
+  const vs = synth.getVoices() || []
+  return vs.find(v => /zh|cmn|chinese|huihui|yaoyao|xiaoxiao/i.test(`${v.lang} ${v.name}`)) || vs[0] || null
+}
+
+function stopSpeak() {
+  clearTimeout(speakTimer)
+  speakTimer = null
+  try { window.speechSynthesis && window.speechSynthesis.cancel() } catch (_) { /* 忽略 */ }
+  speaking.value = false
+}
+
+/* 没有可用语音时，按字数估算时长自动翻页，保证仍能逐句「看到」小说内容 */
+function fallbackAdvance() {
+  speaking.value = true
+  const len = curLine.value ? curLine.value.text.length : 10
+  const ms = Math.min(9000, Math.max(1600, len * 230))
+  speakTimer = setTimeout(() => { if (speaking.value) advance(true) }, ms)
+}
+
+function speakCurrent() {
+  stopSpeak()
+  const line = curLine.value
+  if (!line) return
+  const synth = window.speechSynthesis
+  const voice = pickVoice()
+  if (synth && voice) {
+    ttsReady.value = true
+    const u = new SpeechSynthesisUtterance(line.text)
+    u.voice = voice
+    u.lang = voice.lang || 'zh-CN'
+    u.rate = Number(speakRate.value) || 1
+    u.onend = () => { if (speaking.value) advance(true) }
+    u.onerror = () => { if (speaking.value) fallbackAdvance() }
+    speaking.value = true
+    try { synth.speak(u) } catch (_) { fallbackAdvance() }
+  } else {
+    ttsReady.value = false
+    fallbackAdvance()
+  }
+}
+
+function advance(auto) {
+  if (lineIndex.value < scriptLines.value.length - 1) {
+    lineIndex.value += 1
+    if (auto) speakCurrent()
+  } else {
+    stopSpeak()
+  }
+}
+
+function toggleSpeak() {
+  if (speaking.value) stopSpeak()
+  else speakCurrent()
+}
+function prevLine() {
+  const was = speaking.value
+  stopSpeak()
+  if (lineIndex.value > 0) lineIndex.value -= 1
+  if (was) speakCurrent()
+}
+function nextLine() {
+  const was = speaking.value
+  stopSpeak()
+  if (lineIndex.value < scriptLines.value.length - 1) {
+    lineIndex.value += 1
+    if (was) speakCurrent()
+  }
+}
+function onRateChange() {
+  if (speaking.value) speakCurrent()
+}
+function pauseMediaEls() {
+  ;[videoEl.value, audioEl.value].forEach(el => {
+    if (!el) return
+    try { el.pause() } catch (_) { /* 忽略 */ }
+  })
+}
+function setMode(m) {
+  playMode.value = m
+  if (m === 'theatre') {
+    pauseMediaEls()
+    lineIndex.value = 0
+    nextTick(speakCurrent)
+  } else {
+    stopSpeak()
+    nextTick(() => { tryAutoPlay(false) })
+  }
+}
 
 const sectionTitle = computed(() => (searched.value ? '搜索结果' : '广播剧精选'))
 const sectionCount = computed(() => `共 ${formatNum(total.value)} 部`)
@@ -260,19 +470,57 @@ async function loadCategories() {
   }
 }
 
+/* ---- 媒体地址归一化：把不可达的外链换成后端本地媒体 ---- */
+/* 旧种子数据把 video_url 指向 Google 公开示例桶（commondatastorage.googleapis.com），
+   国内网络访问不到会导致黑屏「播放不了」。这里按文件名映射到本地 /media/drama 下的示例视频，
+   即使数据库还没迁移也能正常播放。 */
+const LEGACY_VIDEO_MAP = {
+  'BigBuckBunny.mp4': 'bunny-trailer.mp4',
+  'ElephantsDream.mp4': 'sintel-trailer.mp4',
+  'ForBiggerBlazes.mp4': 'flower.mp4',
+  'ForBiggerEscapes.mp4': 'friday.mp4',
+  'ForBiggerFun.mp4': 'bunny-trailer.mp4',
+  'ForBiggerJoyrides.mp4': 'sintel-trailer.mp4',
+  'ForBiggerMeltdowns.mp4': 'flower.mp4',
+  'Sintel.mp4': 'friday.mp4',
+  'TearsOfSteel.mp4': 'bunny-trailer.mp4'
+}
+function normalizeMedia(url) {
+  if (!url) return ''
+  const m = /\/([^/?#]+\.mp4)$/i.exec(String(url))
+  if (m && LEGACY_VIDEO_MAP[m[1]]) return '/media/drama/' + LEGACY_VIDEO_MAP[m[1]]
+  if (/commondatastorage\.googleapis\.com/i.test(String(url))) return '/media/drama/sintel-trailer.mp4'
+  return url
+}
+
 /* ---- 详情 / 播放 ---- */
 async function openPlayer(card) {
   if (!card) return
+  forceAudio.value = false
+  mutedHint.value = false
+  mediaState.value = 'loading'
+  mediaErrorText.value = ''
+  lineIndex.value = 0
+  // 有剧本就默认进「声画剧场」：示例视频跟小说无关，剧场才是内容本体
+  playMode.value = scriptOf(card.title).length ? 'theatre' : 'video'
   if (isLocalCard(card)) {
-    player.value = { ...card }
+    player.value = { ...card, videoUrl: normalizeMedia(card.videoUrl), audioUrl: card.audioUrl || '' }
     return
   }
-  player.value = { ...card, videoUrl: card.videoUrl || '', audioUrl: card.audioUrl || '' }
+  player.value = {
+    ...card,
+    videoUrl: normalizeMedia(card.videoUrl),
+    audioUrl: card.audioUrl || ''
+  }
   try {
     const res = await fetchDramaDetail({ id: card.id })
     if (res && res.data) {
       const d = res.data
-      player.value = { ...player.value, ...d }
+      player.value = {
+        ...player.value, ...d,
+        videoUrl: normalizeMedia(d.videoUrl),
+        audioUrl: d.audioUrl || ''
+      }
       // 浏览量 +1 后同步回列表卡片
       const hit = list.value.find(x => x.id === card.id)
       if (hit) hit.views = d.views
@@ -281,33 +529,94 @@ async function openPlayer(card) {
     if (!(e && e.isNetwork)) flash((e && e.message) || '详情加载失败')
   }
 }
+
 function closePlayer() {
+  // 关闭时暂停并释放媒体，避免弹层关掉后声音还在后台响
+  ;[videoEl.value, audioEl.value].forEach(el => {
+    if (!el) return
+    try { el.pause() } catch (_) { /* 忽略 */ }
+    try { el.removeAttribute('src'); el.load() } catch (_) { /* 忽略 */ }
+  })
   player.value = null
+  mediaState.value = ''
+  mediaErrorText.value = ''
+  mutedHint.value = false
+  stopSpeak()
+  lineIndex.value = 0
 }
 
-/* 弹层出现后尝试自动播放（用户点击已触发手势，允许带声播放；失败则交还控件） */
+/* ---- 媒体加载状态 ---- */
+function onMediaWaiting() {
+  if (mediaState.value !== 'error') mediaState.value = 'loading'
+}
+function onMediaReady() {
+  mediaState.value = ''
+}
+function onMediaError(kind) {
+  mediaState.value = 'error'
+  mediaErrorText.value = kind === 'video'
+    ? '视频源加载失败：可能是后端未启动、媒体文件缺失或网络不通'
+    : '音频源加载失败：可能是后端未启动、媒体文件缺失或网络不通'
+}
+function retryMedia() {
+  mediaState.value = 'loading'
+  mediaErrorText.value = ''
+  mediaKey.value += 1
+  nextTick(() => { tryAutoPlay(true) })
+}
+function useAudio() {
+  forceAudio.value = true
+  mediaState.value = 'loading'
+  mediaErrorText.value = ''
+  nextTick(() => { tryAutoPlay(true) })
+}
+
+/* 弹层出现后尝试自动播放：带声被拦截时退化为静音播放（控件仍可手动出声） */
+async function tryAutoPlay(isRetry = false) {
+  const el = (!forceAudio.value && videoEl.value) ? videoEl.value : audioEl.value
+  if (!el || !el.play) return
+  try {
+    await el.play()
+    mutedHint.value = false
+  } catch (_) {
+    try {
+      el.muted = true
+      await el.play()
+      mutedHint.value = true
+    } catch (e2) {
+      // 自动播放彻底失败：交给 controls 手动播放；若是资源本身有问题则提示
+      if (isRetry) onMediaError(forceAudio.value ? 'audio' : 'video')
+    }
+  }
+}
+
 watch(player, async (val) => {
   if (!val) return
+  mediaState.value = 'loading'
+  mutedHint.value = false
   await nextTick()
-  const v = videoEl.value
-  const a = audioEl.value
-  try {
-    if (v && v.play) await v.play()
-    else if (a && a.play) await a.play()
-  } catch (_) { /* 浏览器拦截时由 controls 兜底 */ }
+  if (playMode.value === 'theatre') {
+    lineIndex.value = 0
+    speakCurrent()
+  } else {
+    tryAutoPlay(false)
+  }
 })
 
-/* ---- 演示模式数据源（后端未启动时，用本地广播剧库保证可浏览可播放） ---- */
+/* ---- 演示模式数据源（后端未启动时，用本地广播剧库保证可浏览） ----
+   视频地址统一指向后端托管的 /media/drama（项目本地文件，不依赖外网），
+   与数据库 t_drama.video_url 保持一致。 */
+const DRAMA_MEDIA = '/media/drama/'
 const DRAMA_LIB = [
-  { title: '雾港谜案', summary: '潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', category: '悬疑', tags: ['悬疑', '推理', '怀表'], platform: '喜马拉雅', duration: '全 8 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', views: 821, likes: 142 },
-  { title: '晚风寄来的情书', summary: '一封没有邮票的信，在三个人的抽屉里辗转了十年。', category: '言情', tags: ['言情', '信', '十年'], platform: '猫耳FM', duration: '全 6 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4', views: 654, likes: 98 },
-  { title: '星轨之外', summary: '最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', category: '科幻', tags: ['科幻', '方舟', '末日'], platform: '蜻蜓FM', duration: '12:34', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4', views: 932, likes: 177 },
-  { title: '猫咪咖啡馆的午后', summary: '一只不爱说话的猫，治愈了所有推门进来的人。', category: '治愈', tags: ['治愈', '猫咪', '咖啡馆'], platform: '喜马拉雅', duration: '全 10 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4', views: 1180, likes: 263 },
-  { title: '长安月明', summary: '上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', category: '古风', tags: ['古风', '长安', '灯会'], platform: '猫耳FM', duration: '全 9 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4', views: 743, likes: 151 },
-  { title: '会发光的小怪兽', summary: '夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', category: '儿童', tags: ['儿童', '怪兽', '陪伴'], platform: '凯叔讲故事', duration: '全 12 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4', views: 560, likes: 119 },
-  { title: '第七次钟声', summary: '钟楼每响一次，就有一个人忘记今天发生过的事。', category: '悬疑', tags: ['悬疑', '钟楼', '失忆'], platform: '喜马拉雅', duration: '全 7 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4', views: 689, likes: 133 },
-  { title: '时间旅人的信', summary: '寄给十年前的自己，却先被十年后的人收下了。', category: '科幻', tags: ['科幻', '时间', '信'], platform: '蜻蜓FM', duration: '全 5 集', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4', views: 877, likes: 190 },
-  { title: '海边的旧信封', summary: '退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', category: '治愈', tags: ['治愈', '海边', '漂流瓶'], platform: '喜马拉雅', duration: '11:20', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4', views: 1024, likes: 208 }
+  { title: '雾港谜案', summary: '潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', category: '悬疑', tags: ['悬疑', '推理', '怀表'], platform: '喜马拉雅', duration: '全 8 集', videoUrl: DRAMA_MEDIA + 'bunny-trailer.mp4', views: 821, likes: 142 },
+  { title: '晚风寄来的情书', summary: '一封没有邮票的信，在三个人的抽屉里辗转了十年。', category: '言情', tags: ['言情', '信', '十年'], platform: '猫耳FM', duration: '全 6 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 654, likes: 98 },
+  { title: '星轨之外', summary: '最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', category: '科幻', tags: ['科幻', '方舟', '末日'], platform: '蜻蜓FM', duration: '12:34', videoUrl: DRAMA_MEDIA + 'flower.mp4', views: 932, likes: 177 },
+  { title: '猫咪咖啡馆的午后', summary: '一只不爱说话的猫，治愈了所有推门进来的人。', category: '治愈', tags: ['治愈', '猫咪', '咖啡馆'], platform: '喜马拉雅', duration: '全 10 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 1180, likes: 263 },
+  { title: '长安月明', summary: '上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', category: '古风', tags: ['古风', '长安', '灯会'], platform: '猫耳FM', duration: '全 9 集', videoUrl: DRAMA_MEDIA + 'friday.mp4', views: 743, likes: 151 },
+  { title: '会发光的小怪兽', summary: '夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', category: '儿童', tags: ['儿童', '怪兽', '陪伴'], platform: '凯叔讲故事', duration: '全 12 集', videoUrl: DRAMA_MEDIA + 'flower.mp4', views: 560, likes: 119 },
+  { title: '第七次钟声', summary: '钟楼每响一次，就有一个人忘记今天发生过的事。', category: '悬疑', tags: ['悬疑', '钟楼', '失忆'], platform: '喜马拉雅', duration: '全 7 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 689, likes: 133 },
+  { title: '时间旅人的信', summary: '寄给十年前的自己，却先被十年后的人收下了。', category: '科幻', tags: ['科幻', '时间', '信'], platform: '蜻蜓FM', duration: '全 5 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 877, likes: 190 },
+  { title: '海边的旧信封', summary: '退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', category: '治愈', tags: ['治愈', '海边', '漂流瓶'], platform: '喜马拉雅', duration: '11:20', videoUrl: DRAMA_MEDIA + 'bunny-trailer.mp4', views: 1024, likes: 208 }
 ]
 
 function codeOf(name) {
@@ -358,6 +667,14 @@ function formatNum(n) {
 onMounted(() => {
   loadCategories()
   loadList(false)
+  // 预热语音列表：部分浏览器首次 getVoices() 返回空，需等 onvoiceschanged
+  if (window.speechSynthesis) {
+    try { window.speechSynthesis.getVoices() } catch (_) { /* 忽略 */ }
+  }
+})
+
+onBeforeUnmount(() => {
+  stopSpeak()
 })
 </script>
 
@@ -616,9 +933,205 @@ onMounted(() => {
   background: linear-gradient(135deg, #2c3e6b, #5b6fb0);
   display: flex; align-items: center; justify-content: center;
 }
+/* 剧场模式要放画面 + 字幕 + 角色栏，给足高度，避免控制条被裁掉 */
+.player-media.is-theatre { aspect-ratio: 4 / 3; }
 .player-video { width: 100%; height: 100%; object-fit: contain; background: #000; }
 .player-audio { width: 100%; }
 .no-media { color: rgba(255, 255, 255, .9); font-size: 14px; letter-spacing: .05em; padding: 20px; text-align: center; }
+
+/* 媒体加载 / 失败状态浮层 */
+.media-state {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 18px; text-align: center;
+  background: rgba(28, 20, 30, .72);
+  color: rgba(255, 255, 255, .92);
+  font-size: 13px; letter-spacing: .05em;
+  animation: maskIn .2s ease both;
+  /* 加载中不挡住播放器控件，用户仍可手动点击播放 */
+  pointer-events: none;
+}
+.media-state.is-error { pointer-events: auto; background: rgba(72, 30, 46, .86); }
+.media-state .spinner {
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 2.5px solid rgba(255, 255, 255, .28);
+  border-top-color: #f7d98a;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.media-state .err-title { margin: 0; font-size: 15px; color: #ffd9e4; letter-spacing: .08em; }
+.media-state .err-desc { margin: 0; font-size: 12.5px; line-height: 1.8; color: rgba(255, 255, 255, .78); max-width: 420px; }
+.media-state .err-actions { margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.media-state .err-btn {
+  font-family: inherit; cursor: pointer; font-size: 12.5px; letter-spacing: .06em;
+  color: #fff; border: 0; padding: 8px 18px; border-radius: 18px;
+  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  box-shadow: 0 6px 16px rgba(233, 184, 95, .3);
+  transition: transform .15s, filter .2s;
+}
+.media-state .err-btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.media-state .err-btn.ghost {
+  background: transparent; border: 1px solid rgba(255, 255, 255, .45);
+  color: rgba(255, 255, 255, .9); box-shadow: none;
+}
+.tip-muted { color: #d9a844; }
+
+/* ===== 播放模式切换 ===== */
+.play-modes { display: flex; gap: 6px; margin-bottom: 12px; }
+.mode-btn {
+  font-family: inherit; cursor: pointer; font-size: 12.5px; letter-spacing: .06em;
+  color: var(--muted); background: var(--field-bg); border: 1px solid var(--field-border);
+  padding: 6px 16px; border-radius: 16px;
+  transition: color .2s, background .25s, transform .15s, box-shadow .25s;
+}
+.mode-btn:hover { color: var(--ink); transform: translateY(-1px); }
+.mode-btn.active {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  box-shadow: 0 6px 14px rgba(233, 184, 95, .32);
+}
+
+/* ===== 声画剧场：逐句朗读小说正文 ===== */
+.theatre {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 16px;
+}
+.theatre-suspense { background: linear-gradient(135deg, #2c3e6b, #5b6fb0); }
+.theatre-romance  { background: linear-gradient(135deg, #ff9ec4, #ffd0a6); }
+.theatre-sci-fi   { background: linear-gradient(135deg, #5ec5d8, #6f8cff); }
+.theatre-healing  { background: linear-gradient(135deg, #a9e5c9, #ffe0a8); }
+.theatre-ancient  { background: linear-gradient(135deg, #e6c98a, #cfa86a); }
+.theatre-children { background: linear-gradient(135deg, #ffb3c9, #b8e0ff); }
+.theatre-other    { background: linear-gradient(135deg, #cfe3ff, #e6d6ff); }
+
+.theatre-glow {
+  position: absolute; left: 50%; top: 42%;
+  width: 62%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 70%);
+  animation: breathe 7s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(.9); opacity: .5; }
+  50%      { transform: translate(-50%, -50%) scale(1.15); opacity: .85; }
+}
+
+/* 当前说话角色的专属色调，随台词切换而渐变 */
+.theatre-tint {
+  position: absolute; inset: 0; pointer-events: none;
+  transition: background .8s ease;
+}
+
+.theatre-stage {
+  position: relative; flex: 1; min-height: 0;
+  display: flex; align-items: center; gap: 18px;
+  padding: 16px 20px 6px;
+}
+.stage-art {
+  position: relative; flex: 0 0 auto;
+  width: min(40%, 190px); aspect-ratio: 1 / 1;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .34);
+  box-shadow: 0 10px 26px rgba(30, 16, 40, .34);
+  animation: artIn .45s ease both;
+}
+@keyframes artIn {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+.stage-tag {
+  position: absolute; left: 8px; bottom: 8px;
+  font-size: 10.5px; letter-spacing: .12em;
+  padding: 2px 8px; border-radius: 10px;
+  color: #fff; background: rgba(28, 16, 34, .46); backdrop-filter: blur(4px);
+}
+.stage-caption {
+  flex: 1; min-width: 0; max-height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.theatre .line-speaker {
+  margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+}
+.sp-name {
+  font-size: 12.5px; letter-spacing: .18em; color: #fff;
+  padding: 2px 9px; border-radius: 10px;
+  background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .3);
+}
+.sp-role { font-size: 11.5px; letter-spacing: .06em; color: rgba(255, 255, 255, .8); }
+.theatre .line-text {
+  margin: 0;
+  font-size: 18px; line-height: 1.85; font-weight: 500; letter-spacing: .04em;
+  color: #fff; text-shadow: 0 2px 14px rgba(40, 20, 50, .45);
+  animation: lineIn .5s ease both;
+}
+
+/* 角色栏：本剧所有人物，当前说话者高亮 */
+.theatre-cast {
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; overflow-x: auto;
+  background: rgba(20, 12, 24, .28); backdrop-filter: blur(6px);
+}
+.cast-chip {
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 2px; border: 0; background: none; cursor: pointer; font-family: inherit;
+  transition: transform .2s ease, opacity .25s ease;
+}
+.cast-av {
+  display: block; width: 36px; height: 36px; border-radius: 50%; overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, .35);
+  transition: border-color .25s, box-shadow .25s;
+}
+.cast-name { font-size: 11px; letter-spacing: .04em; color: rgba(255, 255, 255, .85); }
+.cast-chip.mute { opacity: .55; }
+.cast-chip:hover { transform: translateY(-2px); opacity: 1; }
+.cast-chip.active .cast-av {
+  border-color: #f7d98a;
+  box-shadow: 0 0 0 3px rgba(247, 217, 138, .28), 0 6px 14px rgba(30, 16, 40, .4);
+}
+.cast-chip.active .cast-name { color: #fff; font-weight: 600; }
+@keyframes lineIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.theatre-foot {
+  position: relative;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 11px 16px;
+  background: rgba(20, 12, 24, .34); backdrop-filter: blur(6px);
+}
+.tf-btn {
+  font-family: inherit; cursor: pointer; font-size: 12.5px; letter-spacing: .05em;
+  color: rgba(255, 255, 255, .92);
+  background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .28);
+  padding: 6px 14px; border-radius: 16px;
+  transition: background .2s, transform .15s;
+}
+.tf-btn:hover { background: rgba(255, 255, 255, .3); transform: translateY(-1px); }
+.tf-btn.primary {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  box-shadow: 0 6px 14px rgba(233, 184, 95, .32);
+}
+.tf-prog { font-size: 12px; color: rgba(255, 255, 255, .82); letter-spacing: .06em; }
+.tf-rate {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255, 255, 255, .86); letter-spacing: .04em;
+}
+.tf-rate input { width: 84px; accent-color: #f7d98a; }
+.theatre-tip {
+  margin: 0; padding: 7px 16px;
+  font-size: 11.5px; letter-spacing: .04em; color: rgba(255, 255, 255, .85);
+  background: rgba(20, 12, 24, .5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theatre-glow { animation: none; }
+  .theatre .line-text { animation: none; }
+  .stage-art { animation: none; }
+}
 
 .player-meta {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

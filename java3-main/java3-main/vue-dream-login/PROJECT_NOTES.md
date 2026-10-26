@@ -90,10 +90,13 @@
   - 头部：标题 + 广播剧搜索框 + 「热门平台」筛选 chips（全部/喜马拉雅/猫耳FM/晋江文学城/蜻蜓FM/凯叔讲故事）
   - 列表区：分类 tab（含数量，来自 `/api/drama/categories`）+ 「最新/最热」排序 + 卡片网格 + 「加载更多」分页（`/api/drama/list`，支持 keyword/category/platform/sort）
   - 卡片：无封面时按 `categoryCode` 配渐变色块 + 首字水印 + 分类标签 + **「播放」角标** + **来源平台角标** + 时长/浏览/点赞；点卡片打开**播放器弹层**
-  - 播放器弹层：主播放源 `<video :src="videoUrl" controls autoplay playsinline>`（**有画面也有声音**，弹层出现尝试自动播放，被拦截时交还控件）；`videoUrl` 为空回退 `<audio :src="audioUrl">`；都无则提示无媒体；详情走 `/api/drama/detail`（浏览量 +1 回写列表）
-  - 后端不可用时自动降级演示模式（本地 `DRAMA_LIB` 9 部，卡片 id 取负；媒体用公开示例视频，保证可播放可演示）
+  - 播放器弹层：主播放源 `<video :src="videoUrl" controls playsinline>`（**有画面也有声音**）；`videoUrl` 为空回退 `<audio :src="audioUrl">`；都无则提示无媒体；详情走 `/api/drama/detail`（浏览量 +1 回写列表）
+  - **声画剧场（内容本体，2026-10-26 新增）**：`src/data/dramaScripts.js` 存 9 部剧的原创小说片段剧本（共 100 句，带角色名）。播放器默认进「声画剧场」——氛围渐变背景 + 呼吸光晕 + 逐句大字字幕，用 `speechSynthesis` 朗读中文，支持播放/暂停、上一句/下一句、语速 0.6~1.6；没有可用中文语音时自动降级为按字数定时翻页（仍可逐句阅读）。`scriptOf(title)` 按剧名取剧本，取不到才退回视频模式
+  - **媒体地址**：`videoUrl` 一律是后端托管的本地路径 `/media/drama/*.mp4`，**仅是画面占位素材，与小说内容无关**（示例动画/测试片段）。带计时器的 `movie-300.mp4` 已下线删除（早期用过 `commondatastorage.googleapis.com` 公开示例桶，国内不可达会导致黑屏「播放不了」，已废弃）。`normalizeMedia()` 会兜底把遗留 Google 地址按文件名映射成本地文件，数据库没迁移也能播
+  - **播放容错**（2026-10-26 补）：媒体区叠 loading / error 状态浮层 —— 加载中转圈，失败时提示原因并给「重新加载」「改用音频播放」两个按钮（不再出现点了没反应）；自动播放被浏览器拦截时退化为静音播放并提示可手动恢复；关闭弹层会 `pause()` 并移除 `src`，避免声音在后台继续播
+  - 后端不可用时自动降级演示模式（本地 `DRAMA_LIB` 9 部，卡片 id 取负；媒体同样指向 `/media/drama/*`，后端没起时会显示「媒体加载失败」而不是静默黑屏）
 - `src/App.vue` — 会话管理：记住我 → localStorage，否则 → sessionStorage（键 `dream-user`），刷新自动恢复，退出清除；同时定义全站主题变量（`:root` 日间 / `.app-root.dark` 夜空），新增 `--panel-bg` 给弹层做不透明底色（scoped 样式里写 `:global(.app-root.dark) xxx` **无效**，会被编译器丢掉，主题差异一律走变量）
-- `vite.config.js` — `/api` 代理到 `http://localhost:8081`
+- `vite.config.js` — `/api` 代理到 `http://localhost:8081`；`/media` 同样代理过去（广播剧视频/音频由后端托管，避免依赖外网）。⚠️ 若把媒体放进 `public/` 会与代理冲突 —— proxy 中间件先于静态文件生效
 
 ## 六、本机环境坑（都踩过，别再排查）
 

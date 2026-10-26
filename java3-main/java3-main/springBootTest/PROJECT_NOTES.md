@@ -78,7 +78,10 @@
 - 列表项 `DramaVO` 字段：`id,title,summary,coverUrl,category,categoryCode,tags[],platform,videoUrl,audioUrl,posterUrl,duration,views,likes,createTime,timeText`
 - `category` 传分类名（悬疑）或编码（suspense），不传/`全部` 不限；`platform` 传来源平台（喜马拉雅/猫耳FM/晋江文学城/蜻蜓FM/凯叔讲故事），不传/`全部` 不限；`sort`：`newest`(默认)/`hot`
 - 广播剧为公开内容，**浏览/详情/分类均匿名可访问**（不在 `JwtInterceptor.AUTH_REQUIRED` 里）
-- 播放源：`videoUrl` 为主播放源（有画面也有声音），为空时前端回退 `audioUrl` 纯音频；种子数据 `videoUrl` 用公开示例视频，上线前替换为真实广播剧媒体
+- 播放源：`videoUrl` 为主播放源（有画面也有声音），为空时前端回退 `audioUrl` 纯音频
+- **媒体走后端本地托管**：`videoUrl` 一律填 `/media/drama/*.mp4`，`WebConfig` 已注册 `/media/**` 静态映射（依次查 `file:./media/` → `classpath:/static/media/`，支持 Range 断点续传，不经过 JWT 拦截器）
+  - ⚠️ 早期种子用的是 `https://commondatastorage.googleapis.com/gtv-videos-bucket/...`，该域名国内不可达 → 播放器黑屏「播放不了」，已全部改成本地地址
+  - 已有库升级执行 `sql/dream_drama_media_fix.sql`（幂等）；真实视频直接丢进 `springBootTest/media/drama/` 即可，无需重新打包
 - 建表脚本 `sql/dream_drama.sql`（幂等：建 `t_drama` + `t_drama_category` + 9 条种子），启动脚本第 4.5 步已自动执行（t_drama 缺失时）
 
 前端无后端时会自动进入「演示模式」：`api.js` 里网络错误带 `isNetwork=true` 标记，仅此时降级本地生成验证码 / 本地梦境库 / 本地广播剧库。
@@ -114,7 +117,8 @@
   - ⚠️ 纯 Mock 单测里 MP 的 lambda 列名缓存是空的，一旦物化 SQL 片段（`getCustomSqlSegment()`）就抛 `can not find lambda cache for this entity`；`@BeforeAll` 里用 `TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(), "unit-test"), Dream.class)` 初始化即可。另注意 lambda 条件是**惰性**的：不先物化 SQL 就读 `getParamNameValuePairs()` 会拿到空 map
 - `sql/dream_login.sql` — 建库 + `t_user` + 3 个演示账号（梦梦/星星/夜风，密码都是 `abc123456`，哈希与 `PasswordUtil` 的盐一致）
 - `sql/dream_home.sql` — 建 `t_dream`（12 条种子）/ `t_dream_category`（4 条）/ `t_dream_like`（5 条）/ `t_dream_search_log`（14 条）/ `t_dream_favorite`（5 条）
-- `sql/dream_drama.sql` — 建 `t_drama`（9 条广播剧种子，含 `videoUrl` 公开示例视频）/ `t_drama_category`（6 条：悬疑/言情/科幻/治愈/古风/儿童）；启动脚本第 4.5 步自动执行（t_drama 缺失时）
+- `sql/dream_drama.sql` — 建 `t_drama`（9 条广播剧种子，`videoUrl` 指向本地 `/media/drama/*.mp4`）/ `t_drama_category`（6 条：悬疑/言情/科幻/治愈/古风/儿童）；启动脚本第 4.5 步自动执行（t_drama 缺失时）
+- `sql/dream_drama_media_fix.sql` — 幂等修复脚本，把存量库里指向 Google 示例桶的 `video_url` 改成本地 `/media/drama/*.mp4`（老库升级执行一次即可）
 
 **广播剧（新增，首页「广播剧」功能，全部匿名可访问，零 XML）**
 - `controller/DramaController.java` — `/api/drama/list`、`/detail`、`/categories`

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>广播剧角色画册（临时预览）</title>
+<style>
+  body { margin: 0; padding: 16px; background: #f6f2f7; font-family: "Microsoft YaHei", sans-serif; color: #443; }
+  h3 { margin: 14px 0 8px; font-size: 15px; letter-spacing: .08em; }
+  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .cell { text-align: center; }
+  .av { width: 150px; height: 150px; border-radius: 12px; overflow: hidden; margin: 0 auto; box-shadow: 0 6px 16px rgba(80,50,90,.2); }
+  .cell p { margin: 5px 0 0; font-size: 11.5px; }
+  .cell small { color: #887; }
+
+  /* ===== 剧场布局模拟（数值与 DramaPage.vue 保持一致） ===== */
+  .mock-panel { width: 720px; margin: 20px 0; padding: 22px 26px; border-radius: 24px; background: #fff;
+                box-shadow: 0 24px 60px rgba(120,70,100,.35); }
+  .mock-media { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden;
+                background: linear-gradient(135deg, #3d4a52, #6b7c8a); }
+  .theatre { position: absolute; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .theatre-tint { position: absolute; inset: 0; }
+  .theatre-stage { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; gap: 18px; padding: 16px 20px 6px; }
+  .stage-art { position: relative; flex: 0 0 auto; width: min(40%, 190px); aspect-ratio: 1/1; border-radius: 14px; overflow: hidden;
+               border: 1px solid rgba(255,255,255,.34); box-shadow: 0 10px 26px rgba(30,16,40,.34); }
+  .stage-tag { position: absolute; left: 8px; bottom: 8px; font-size: 10.5px; letter-spacing: .12em; padding: 2px 8px; border-radius: 10px;
+               color: #fff; background: rgba(28,16,34,.46); }
+  .stage-caption { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .line-speaker { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .sp-name { font-size: 12.5px; letter-spacing: .18em; color: #fff; padding: 2px 9px; border-radius: 10px;
+             background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3); }
+  .sp-role { font-size: 11.5px; color: rgba(255,255,255,.8); }
+  .line-text { margin: 0; font-size: 18px; line-height: 1.85; font-weight: 500; color: #fff; }
+  .theatre-cast { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: rgba(20,12,24,.28); }
+  .cast-chip { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 2px;
+               border: 0; background: none; font-family: inherit; }
+  .cast-av { display: block; width: 36px; height: 36px; border-radius: 50%; overflow: hidden; border: 2px solid rgba(255,255,255,.35); }
+  .cast-name { font-size: 11px; color: rgba(255,255,255,.85); }
+  .cast-chip.mute { opacity: .55; }
+  .cast-chip.active .cast-av { border-color: #f7d98a; box-shadow: 0 0 0 3px rgba(247,217,138,.28); }
+  .cast-chip.active .cast-name { color: #fff; font-weight: 600; }
+  .theatre-foot { display: flex; align-items: center; gap: 8px; padding: 11px 16px; background: rgba(20,12,24,.34); }
+  .tf-btn { font-size: 12.5px; color: rgba(255,255,255,.92); background: rgba(255,255,255,.16);
+            border: 1px solid rgba(255,255,255,.28); padding: 6px 14px; border-radius: 16px; }
+  .tf-btn.primary { color: #fff; border-color: transparent; background: linear-gradient(120deg,#f0a9c4,#e9b85f); }
+  .tf-prog { font-size: 12px; color: rgba(255,255,255,.82); margin-left: auto; }
+</style>
+</head>
+<body>
+<h3>剧场布局模拟（老周正在说话）</h3>
+<div class="mock-panel">
+  <div class="mock-media">
+    <div class="theatre">
+      <span class="theatre-tint" style="background: linear-gradient(135deg, #8a8578E6, #8a857866);"></span>
+      <div class="theatre-stage">
+        <div class="stage-art"><div id="mockArt" style="width:100%;height:100%"></div><span class="stage-tag">守钟人</span></div>
+        <div class="stage-caption">
+          <p class="line-speaker"><span class="sp-name">老周</span><span class="sp-role">数了四十年钟声</span></p>
+          <p class="line-text">第七次，是钟自己忘了。</p>
+        </div>
+      </div>
+      <div class="theatre-cast" id="mockCast"></div>
+      <div class="theatre-foot">
+        <button class="tf-btn primary">暂停</button>
+        <button class="tf-btn">上一句</button>
+        <button class="tf-btn">下一句</button>
+        <span class="tf-prog">13 / 13</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h3>全部角色画册</h3>
+<div id="app"></div>
+<script type="module" src="/src/castPreview.js"></script>
+</body>
+</html>

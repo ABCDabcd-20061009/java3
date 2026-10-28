@@ -119,7 +119,9 @@
             <!-- 舞台：左=该角色专属画面，右=台词字幕 -->
             <div class="theatre-stage">
               <div class="stage-art">
-                <DramaVisual :key="curVisual.name" :visual="curVisual" :speaking="speaking" size="stage" />
+                <DramaFrame :key="curVisual.name" :title="player.title" :name="curVisual.name" :visual="curVisual"
+                            :role="curVisual.role || (curVisual.kind === 'scene' ? '场景' : '')"
+                            :speaking="speaking" size="stage" />
                 <span class="stage-tag">{{ curVisual.kind === 'scene' ? '场景' : (curVisual.role || '角色') }}</span>
               </div>
               <div class="stage-caption">
@@ -136,7 +138,7 @@
               <button v-for="p in castList" :key="p.name" type="button" class="cast-chip"
                       :class="{ active: p.name === curSpeaker, mute: p.name !== curSpeaker }"
                       :title="p.desc || p.name" @click="jumpToSpeaker(p.name)">
-                <span class="cast-av"><DramaVisual :visual="p" :speaking="false" size="chip" /></span>
+                <span class="cast-av"><DramaFrame :title="player.title" :name="p.name" :visual="p" :role="p.role" :speaking="false" size="chip" /></span>
                 <span class="cast-name">{{ p.name }}</span>
               </button>
             </div>
@@ -153,9 +155,16 @@
             <p class="theatre-tip" v-if="!ttsReady">当前浏览器没有可用的中文语音，已改为自动翻页（仍可逐句阅读）</p>
           </div>
 
-          <!-- ===== 视频 / 音频播放 ===== -->
+          <!-- ===== 视频画面：有剧本则播放「本剧角色动画」（每个故事各不相同）；无剧本再退真实视频/音频 ===== -->
           <template v-else>
-            <video v-if="player.videoUrl && !forceAudio" :key="'v' + mediaKey" ref="videoEl" class="player-video"
+            <!-- 视频画面：优先播放「本剧电视剧式视频」（每部不同）；视频缺失时回退到角色动画蒙太奇 -->
+            <video v-if="player && videoSrc && !videoBroken" :key="'v' + mediaKey" ref="videoEl" class="player-video"
+                   :src="videoSrc" :poster="player.posterUrl || player.coverUrl"
+                   controls playsinline preload="metadata"
+                   @error="videoBroken = true" @waiting="onMediaWaiting"
+                   @canplay="onMediaReady" @playing="onMediaReady"></video>
+            <DramaMontage v-else-if="player && hasScript" :title="player.title" />
+            <video v-else-if="player && player.videoUrl && !forceAudio" :key="'v2' + mediaKey" ref="videoEl" class="player-video"
                    :src="player.videoUrl" :poster="player.posterUrl || player.coverUrl"
                    controls playsinline preload="metadata"
                    @error="onMediaError('video')" @waiting="onMediaWaiting"
@@ -204,10 +213,21 @@
             声画剧场：逐句朗读本剧小说片段，可调语速、前后翻句 ✦
           </template>
           <template v-else>
-            提示：视频为画面占位素材，若未自动播放请点击播放按钮 🔊
-            <span v-if="mutedHint" class="tip-muted">（浏览器拦截了带声自动播放，已先静音播放，点一下音量图标即可恢复 🔈）</span>
+            视频画面为每部剧独立生成的电视剧式片段，每个故事各不相同；暂未生成时自动播放本剧角色动画 ✦
           </template>
         </p>
+
+        <!-- 角色画廊：本剧每个登场人物都有对应的专属画面 -->
+        <div class="cast-gallery" v-if="castGallery.length">
+          <div class="cg-head"><span class="dot"></span>本剧人物 · 各有专属画面</div>
+          <div class="cg-grid">
+            <div class="cg-card" v-for="p in castGallery" :key="p.name">
+              <div class="cg-art"><DramaFrame :title="player.title" :name="p.name" :visual="p" :role="p.role || (p.kind === 'scene' ? '旁白 · 场景' : '')" :speaking="false" size="stage" /></div>
+              <div class="cg-name">{{ p.name }}</div>
+              <div class="cg-role">{{ p.role || (p.kind === 'scene' ? '旁白 · 场景' : '') }}</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -220,6 +240,9 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { fetchDramaList, fetchDramaDetail, fetchDramaCategories } from '../api'
 import { scriptOf, castOf, visualOf } from '../data/dramaScripts'
 import DramaVisual from './DramaVisual.vue'
+import DramaMontage from './DramaMontage.vue'
+import DramaFrame from './DramaFrame.vue'
+import { videoFor } from '../data/dramaMedia'
 
 /* ---- 轻提示 ---- */
 const toastMsg = ref('')
@@ -259,6 +282,8 @@ const mediaErrorText = ref('')
 const forceAudio = ref(false)       // 视频失败后手动回退到音频
 const mediaKey = ref(0)             // 变更即强制重建 media 元素（重试用）
 const mutedHint = ref(false)        // 是否被浏览器静音自动播放
+const videoBroken = ref(false)      // 本剧电视剧式视频缺失/加载失败时，回退到角色动画
+const videoSrc = computed(() => (player.value ? videoFor(player.value.title) : ''))
 
 /* ---- 声画剧场：逐句朗读小说正文 ---- */
 /* 示例视频只是画面占位、与小说内容无关，真正的内容在剧本里，所以默认走剧场模式 */
@@ -276,6 +301,8 @@ const curLine = computed(() => scriptLines.value[lineIndex.value] || null)
 
 /* ---- 每个角色一套专属画面：说话人 → 该角色立绘；旁白 → 本剧场景画面 ---- */
 const castList = computed(() => (player.value ? castOf(player.value.title) : []))
+/* 角色画廊：本剧每个登场人物（含旁白）都展示其专属画面 */
+const castGallery = castList
 const curVisual = computed(() => visualOf(player.value ? player.value.title : '', curLine.value))
 const curSpeaker = computed(() => (curLine.value && curLine.value.speaker) || '')
 const tintBg = computed(() => `linear-gradient(135deg, ${curVisual.value.color}E6, ${curVisual.value.color}66)`)
@@ -592,14 +619,21 @@ async function tryAutoPlay(isRetry = false) {
 
 watch(player, async (val) => {
   if (!val) return
-  mediaState.value = 'loading'
   mutedHint.value = false
   await nextTick()
   if (playMode.value === 'theatre') {
+    mediaState.value = ''
     lineIndex.value = 0
     speakCurrent()
   } else {
-    tryAutoPlay(false)
+    // 视频画面：有剧本 → 优先播放本剧电视剧式视频，缺失则回退角色动画（无需加载媒体）
+    if (hasScript.value) {
+      mediaState.value = ''
+      videoBroken.value = false
+    } else {
+      mediaState.value = val.videoUrl ? 'loading' : ''
+      tryAutoPlay(false)
+    }
   }
 })
 
@@ -608,15 +642,15 @@ watch(player, async (val) => {
    与数据库 t_drama.video_url 保持一致。 */
 const DRAMA_MEDIA = '/media/drama/'
 const DRAMA_LIB = [
-  { title: '雾港谜案', summary: '潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', category: '悬疑', tags: ['悬疑', '推理', '怀表'], platform: '喜马拉雅', duration: '全 8 集', videoUrl: DRAMA_MEDIA + 'bunny-trailer.mp4', views: 821, likes: 142 },
-  { title: '晚风寄来的情书', summary: '一封没有邮票的信，在三个人的抽屉里辗转了十年。', category: '言情', tags: ['言情', '信', '十年'], platform: '猫耳FM', duration: '全 6 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 654, likes: 98 },
-  { title: '星轨之外', summary: '最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', category: '科幻', tags: ['科幻', '方舟', '末日'], platform: '蜻蜓FM', duration: '12:34', videoUrl: DRAMA_MEDIA + 'flower.mp4', views: 932, likes: 177 },
-  { title: '猫咪咖啡馆的午后', summary: '一只不爱说话的猫，治愈了所有推门进来的人。', category: '治愈', tags: ['治愈', '猫咪', '咖啡馆'], platform: '喜马拉雅', duration: '全 10 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 1180, likes: 263 },
-  { title: '长安月明', summary: '上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', category: '古风', tags: ['古风', '长安', '灯会'], platform: '猫耳FM', duration: '全 9 集', videoUrl: DRAMA_MEDIA + 'friday.mp4', views: 743, likes: 151 },
-  { title: '会发光的小怪兽', summary: '夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', category: '儿童', tags: ['儿童', '怪兽', '陪伴'], platform: '凯叔讲故事', duration: '全 12 集', videoUrl: DRAMA_MEDIA + 'flower.mp4', views: 560, likes: 119 },
-  { title: '第七次钟声', summary: '钟楼每响一次，就有一个人忘记今天发生过的事。', category: '悬疑', tags: ['悬疑', '钟楼', '失忆'], platform: '喜马拉雅', duration: '全 7 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 689, likes: 133 },
-  { title: '时间旅人的信', summary: '寄给十年前的自己，却先被十年后的人收下了。', category: '科幻', tags: ['科幻', '时间', '信'], platform: '蜻蜓FM', duration: '全 5 集', videoUrl: DRAMA_MEDIA + 'sintel-trailer.mp4', views: 877, likes: 190 },
-  { title: '海边的旧信封', summary: '退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', category: '治愈', tags: ['治愈', '海边', '漂流瓶'], platform: '喜马拉雅', duration: '11:20', videoUrl: DRAMA_MEDIA + 'bunny-trailer.mp4', views: 1024, likes: 208 }
+  { title: '雾港谜案', summary: '潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', category: '悬疑', tags: ['悬疑', '推理', '怀表'], platform: '喜马拉雅', duration: '全 8 集', videoUrl: DRAMA_MEDIA + 'fog-harbor.mp4', views: 821, likes: 142 },
+  { title: '晚风寄来的情书', summary: '一封没有邮票的信，在三个人的抽屉里辗转了十年。', category: '言情', tags: ['言情', '信', '十年'], platform: '猫耳FM', duration: '全 6 集', videoUrl: DRAMA_MEDIA + 'love-letter.mp4', views: 654, likes: 98 },
+  { title: '星轨之外', summary: '最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', category: '科幻', tags: ['科幻', '方舟', '末日'], platform: '蜻蜓FM', duration: '12:34', videoUrl: DRAMA_MEDIA + 'star-track.mp4', views: 932, likes: 177 },
+  { title: '猫咪咖啡馆的午后', summary: '一只不爱说话的猫，治愈了所有推门进来的人。', category: '治愈', tags: ['治愈', '猫咪', '咖啡馆'], platform: '喜马拉雅', duration: '全 10 集', videoUrl: DRAMA_MEDIA + 'cat-cafe.mp4', views: 1180, likes: 263 },
+  { title: '长安月明', summary: '上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', category: '古风', tags: ['古风', '长安', '灯会'], platform: '猫耳FM', duration: '全 9 集', videoUrl: DRAMA_MEDIA + 'changan-moon.mp4', views: 743, likes: 151 },
+  { title: '会发光的小怪兽', summary: '夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', category: '儿童', tags: ['儿童', '怪兽', '陪伴'], platform: '凯叔讲故事', duration: '全 12 集', videoUrl: DRAMA_MEDIA + 'glow-monster.mp4', views: 560, likes: 119 },
+  { title: '第七次钟声', summary: '钟楼每响一次，就有一个人忘记今天发生过的事。', category: '悬疑', tags: ['悬疑', '钟楼', '失忆'], platform: '喜马拉雅', duration: '全 7 集', videoUrl: DRAMA_MEDIA + 'seventh-bell.mp4', views: 689, likes: 133 },
+  { title: '时间旅人的信', summary: '寄给十年前的自己，却先被十年后的人收下了。', category: '科幻', tags: ['科幻', '时间', '信'], platform: '蜻蜓FM', duration: '全 5 集', videoUrl: DRAMA_MEDIA + 'time-letter.mp4', views: 877, likes: 190 },
+  { title: '海边的旧信封', summary: '退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', category: '治愈', tags: ['治愈', '海边', '漂流瓶'], platform: '喜马拉雅', duration: '11:20', videoUrl: DRAMA_MEDIA + 'seaside-letter.mp4', views: 1024, likes: 208 }
 ]
 
 function codeOf(name) {
@@ -1156,6 +1190,39 @@ onBeforeUnmount(() => {
 .player-summary { font-size: 14px; line-height: 1.9; color: var(--ink); letter-spacing: .02em; }
 .detail-tags { margin-top: 14px; }
 .player-tip { margin-top: 14px; font-size: 12px; color: var(--muted); letter-spacing: .03em; }
+
+/* ===== 角色画廊：本剧每个登场人物都有对应的专属画面 ===== */
+.cast-gallery { margin-top: 18px; }
+.cg-head {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13.5px; color: var(--ink); letter-spacing: .08em; margin-bottom: 12px;
+}
+.cg-head .dot { width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(135deg, #f0a9c4, #e9b85f); }
+.cg-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px;
+}
+.cg-card {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 10px 8px;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(214, 158, 184, .16);
+  transition: transform .2s, box-shadow .25s;
+}
+.cg-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(214, 158, 184, .3); }
+.cg-art {
+  width: 100%; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .3);
+}
+.cg-name {
+  font-size: 13px; color: var(--ink); letter-spacing: .04em;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cg-role {
+  font-size: 11px; color: var(--muted); letter-spacing: .03em; text-align: center;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* 轻提示 */
 .toast {

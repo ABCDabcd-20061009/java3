@@ -22,9 +22,9 @@ if errorlevel 1 (
 )
 echo [1/2] Node.js ¼ì²éÍ¨¹ý
 
-rem ===== 2. install deps if node_modules missing (CN mirror, fallback to npmjs) =====
-if not exist "%~dp0node_modules\" (
-    echo [info] node_modules missing, installing deps ...
+rem ===== 2. install deps if vite missing (CN mirror, fallback to npmjs) =====
+if not exist "%~dp0node_modules\.bin\vite" (
+    echo [info] vite ÒÀÀµÈ±Ê§»ò²ÐÈ±, installing deps ...
     call npm install --registry=https://registry.npmmirror.com
     if errorlevel 1 (
         echo [warn] npmmirror failed, try registry.npmjs.org ...
@@ -32,6 +32,11 @@ if not exist "%~dp0node_modules\" (
     )
     if errorlevel 1 (
         echo [error] dependency install failed
+        pause
+        exit /b 1
+    )
+    if not exist "%~dp0node_modules\.bin\vite" (
+        echo [error] vite still missing after install
         pause
         exit /b 1
     )

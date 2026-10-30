@@ -84,6 +84,54 @@
   - 已有库升级执行 `sql/dream_drama_media_fix.sql`（幂等）；真实视频直接丢进 `springBootTest/media/drama/` 即可，无需重新打包
 - 建表脚本 `sql/dream_drama.sql`（幂等：建 `t_drama` + `t_drama_category` + 9 条种子），启动脚本第 4.5 步已自动执行（t_drama 缺失时）
 
+### 后台管理接口（独立管理员账号，前缀 `/api/admin`，全部 POST + JSON）
+
+- `POST /api/admin/login` 请求 `{username, password}` → `data = {id, username, token}`
+  - **唯一匿名入口**；账号体系 `t_admin` 与普通用户 `t_user` **完全隔离**
+  - 默认账号 `admin` / `admin123`，由 `config/AdminSchemaInit` 启动时自动建表并植入（幂等，表内非空则跳过）
+- ⚠️ **鉴权**：`JwtInterceptor` 对 `/api/admin/**`（`/login` 除外）强制要求 token 里 `role=admin`。
+  普通用户的 token 访问任何后台接口一律 **401 `无管理员权限`**
+  → **新增后台接口必须放在 `/api/admin/` 前缀下**才会自动受保护；放到别处需手动加进 `JwtInterceptor.AUTH_REQUIRED` 白名单
+
+| 接口 | 请求体 | 返回 data |
+|---|---|---|
+| `POST /api/admin/info` | `{}` | `{id,username}` |
+| `POST /api/admin/overview` | `{}` | `AdminStatsVO` 8 项统计 |
+| `POST /api/admin/dreams` | `{page,size,keyword?,category?,status?}` | `{list,total,...}` |
+| `POST /api/admin/dream/save` | `AdminDreamDTO`（有 id 则编辑） | 单条 |
+| `POST /api/admin/dream/delete` | `{id}` | 逻辑删除 |
+| `POST /api/admin/dramas` | `{page,size,keyword?,category?,platform?,status?}` | `{list,total,...}` |
+| `POST /api/admin/drama/save` / `delete` | 同上 dream | |
+| `POST /api/admin/categories` | `{type:"dream"\|"drama"}` | 分类列表 |
+| `POST /api/admin/category/save` / `delete` | `{...,type}` | |
+| `POST /api/admin/users` | `{page,size,keyword?}` | 列表（含已注销，前端打「已注销」badge） |
+| `POST /api/admin/user/delete` | `{id}` | 注销用户（逻辑删除） |
+| `POST /api/admin/search-logs` | `{page,size,keyword?}` | 搜索日志 |
+| `POST /api/admin/search-logs/clear` | `{}` | 清空日志 |
+| `POST /api/admin/likes` / `favorites` | `{page,size}` | 点赞 / 收藏记录 |
+
+**用户列表会返回已注销用户**（`deleted=1`）：这是**有意设计**，表格里打「已注销」徽标。
+原因是 `UserMapper.selectAdminPage` 用的是自定义 `@Select` 注解 SQL —— ⚠️ **MyBatis-Plus 的 `@TableLogic` 对自定义注解 SQL 不生效**，只对 BaseMapper 方法自动追加过滤。以后写原生 SQL 记得自己带 `deleted = 0`。
+
+### 首页配置接口（把首页栏目从前端搬到数据库）
+
+- `POST /api/home/config` — **匿名**可访问 → `data = {navMenu, shortcut, platform, text}`
+- 后台维护接口 `/api/admin/home-config/**`（同样自动受 `role=admin` 保护）：
+
+| 接口 | 请求体 | 返回 data |
+|---|---|---|
+| `POST /api/admin/home-config/list` | `{type}` | `[{id,configType,configKey,label,subLabel,iconKey,target,sortNo,status}]` |
+| `POST /api/admin/home-config/save` | `SiteConfigDTO`（有 id 则编辑） | 单条 |
+| `POST /api/admin/home-config/delete` | `{id}` | 逻辑删除 |
+
+四类 `config_type`：`nav_menu` 导航菜单 / `shortcut` 快捷入口 / `platform` 广播剧平台 / `site_text` 站点文案（键：`brand_name` / `hero_title` / `hero_sub` / `footer`）。
+
+约束：
+- `config_key` 同类型内唯一，留空自动生成 `<type>_<时间戳>`；重复 → 400
+- **站点文案禁止删除**（`BizException`）：前端强依赖固定键，删了首页会留白，只能改内容或停用
+- `status=0` 停用时前台 `/home/config` 不再返回该项（只筛 `status=1`）
+- 返回体手工用 `LinkedHashMap` 组装，不直接抛实体，规避 `LocalDateTime` 被 Jackson 序列化成数组的老问题
+
 前端无后端时会自动进入「演示模式」：`api.js` 里网络错误带 `isNetwork=true` 标记，仅此时降级本地生成验证码 / 本地梦境库 / 本地广播剧库。
 
 ## 四、后端代码地图（包 com.fenglin.springboottest）
@@ -128,12 +176,40 @@
 - `dto/DramaQuery.java`（page/size/keyword/category/platform/sort）、`DramaDetailDTO.java`
 - `vo/DramaVO.java`（列表+详情统一视图，含 `videoUrl`/`audioUrl`/`posterUrl`/`categoryCode`/`platform`）
 
+**后台管理系统（新增 2026-10-30）**
+- `controller/AdminController.java` — `/api/admin/**` 共 18 个接口（登录/信息/概览/梦境/广播剧/分类/用户/搜索日志/互动数据）
+- `service/AdminService.java` + `service/impl/AdminServiceImpl.java` — 后台全部业务逻辑
+- `entity/Admin.java`（`t_admin`，与普通用户隔离）、`mapper/AdminMapper.java`、`dto/AdminLoginDTO.java` / `AdminDreamDTO.java` / `AdminDramaDTO.java` / `AdminCategoryDTO.java`
+- `vo/AdminStatsVO.java`（概览 8 项统计）、`vo/AdminCategoryVO.java`
+- `config/AdminSchemaInit.java` — ApplicationRunner 幂等建 `t_admin` + 植入默认管理员
+- `UserMapper` / `DreamLikeMapper` / `DreamFavoriteMapper` 新增 `selectAdminPage` / `selectAdminCount` 自定义 `@Select`（联表带标题与用户名，`DATE_FORMAT` 转时间字符串避免序列化成数组）
+- `sql/dream_admin.sql` — 等价手动脚本
+
+**首页配置（新增 2026-10-30）**
+- `entity/SiteConfig.java`（`t_site_config`；常量 `TYPE_NAV_MENU` / `TYPE_SHORTCUT` / `TYPE_PLATFORM` / `TYPE_SITE_TEXT`）
+- `mapper/SiteConfigMapper.java`、`dto/SiteConfigDTO.java`
+- `service/SiteConfigService.java` + `service/impl/SiteConfigServiceImpl.java`
+- `controller/SiteConfigController.java` — `/api/admin/home-config/**`；`HomeController` 新增匿名 `POST /api/home/config`
+- `config/SiteConfigInit.java` — ApplicationRunner 幂等建表 + 植入 19 条种子（5 导航 + 5 快捷入口 + 5 平台 + 4 文案）。**只补齐缺失项**（按 `config_type + config_key` 判断），不会覆盖人工改动过的数据
+- `sql/dream_site_config.sql` — 等价手动脚本
+
+**端到端冒烟脚本**
+- `e2e-admin-test.js`（项目根目录）— `node e2e-admin-test.js`，**53 项断言全通过**
+  - 覆盖：管理员登录 / JWT role / 错误密码 / 匿名拦截 / **普通用户越权 401** / 14 个后台接口 / 7 个匿名接口 / 首页配置完整性 / **CRUD 往返（新增→前台可见→停用→前台隐藏→删除→前台恢复）** / 参数校验（非法类型、缺 label、重复键、站点文案禁删）
+  - **自带清理**：临时注册普通用户做越权校验，结尾由管理员接口注销，可反复运行
+  - ⚠️ 跑完会留下**逻辑删除**的临时行（BaseMapper 自动过滤，页面看不到，但 `GROUP BY` 统计仍能看到）。测试残留可用 mysql 客户端按 key 物理清掉
+
 ## 五、前端要点
 
 - `src/api.js` — 接口封装，`BASE = /api`（可用 `.env` 的 `VITE_API_BASE` 覆盖）
 - `src/components/LoginCard.vue` — 登录/注册双表单：字段级内联校验、密码强度条、验证码倒计时、用户协议勾选；登录成功 `emit('login-success', {user, remember})`
 - `src/components/HomeCard.vue` — 登录后的欢迎主页（用户名、登录时间、退出登录）
 - `src/App.vue` — 会话管理：记住我 → localStorage，否则 → sessionStorage（键 `dream-user`），刷新自动恢复，退出清除
+- **后台管理（新增 2026-10-30）**：会话键独立为 `dream-admin`，与普通用户并存互不干扰，退出后台不会把用户踢下线
+  - `src/components/AdminLogin.vue` — 只有账号+密码，**明确不提供注册**
+  - `src/components/AdminDashboard.vue` — 8 个菜单：数据概览 / 梦境管理 / 广播剧管理 / 分类管理 / 用户管理 / 搜索日志 / 互动数据 / **首页配置**
+  - `src/homeConfig.js`（新增）— 首页配置共享模块：12 个预置图标集、带缓存的 `loadHomeConfig(force)`、失败兜底 `DEFAULT_CONFIG`
+  - 详细组件说明见前端 `vue-dream-login/PROJECT_NOTES.md` 第五节
 - `vite.config.js` — `/api` 代理到 `http://localhost:8081`
 
 ## 六、本机环境坑（都踩过，别再排查）
@@ -151,11 +227,22 @@
    - 判断文件是否真被锁：`mv x.jar y.jar` 报 `Device or resource busy` 即被占用（能 `cp` 说明只是禁止删除/改名）
 10. 首次跑测试要联网一次（本地仓库缺 `surefire-junit-platform`），之后 `mvn.cmd -o test` 可离线跑
 11. **AI 沙箱里 `curl` 要加 `--noproxy '*'`**：否则 localhost 请求会被代理拦下返回 502；PowerShell 工具的前台 stdout 有时拿不到，需要输出时建议用 `run_in_background` 或改用 git bash 的 `tasklist` / `netstat` / `curl`
+12. **mysql 查中文字段必须加 `--default-character-set=utf8mb4`**：否则输出被判定为二进制，报 `Binary file (standard input) matches`
+13. **bash 里 `UID` 是只读变量**，不能用作脚本变量名（换成 `TID` 之类）
+14. **devtools 会自动重启**：改完 Java 类编译进 `target/classes` 后 running 实例自动生效，一般不用手动重启后端
 
 ## 七、已知缺口（用户可能让你继续做的）
 
 - ~~首页搜索后端~~（已完成：`/api/search`、`/api/home/*`、`/api/dream/*` 全部就绪）
 - ~~接口 JWT 鉴权~~（已完成：登录发 token，点赞/收藏/发布/编辑/删除按 token 身份）
+- ~~后台管理系统~~（已完成：`/api/admin/**` 18 个接口 + 独立管理员账号 + 8 个管理菜单）
+- ~~首页硬编码栏目纳管~~（已完成：`t_site_config` + 「首页配置」菜单，覆盖导航菜单/快捷入口/广播剧平台/站点文案）
+
+**仍为前端硬编码、未纳入后台**（如要继续做，参考首页配置的做法）：
+- Hero 区搜索框 placeholder「搜索梦境、故事或关键词…」、问候语「今天想找一场怎样的梦？」
+- 区块标题与角标文案：如「快捷入口」这个标题本身、「大家都在看」的说明「按浏览量挑选的 6 场梦」
+- 后台自己的侧边菜单（`AdminDashboard.vue` 的 `menus` 数组）—— 一般不需要数据化
+- ⚠️ 上线前记得改掉默认管理员密码 `admin123`（该账号现在能改全站文案，风险更高）
 - ~~收藏功能~~（已完成：`t_dream_favorite` + `/api/dream/favorite` + `/api/user/favorites`，前端「我的收藏」已接通）
 - ~~无单元测试~~（已完成：`DreamServiceImplTest` 20 例 + `JwtUtilTest` 5 例 = 26 例，`mvn.cmd -o test` 全绿）
 - ~~创作闭环 + 个人中心后端~~（已完成：`/api/dream/update`、`/api/dream/delete`、`/api/user/dreams`、`/api/user/profile`，含「只能改/删自己内容」的归属校验）

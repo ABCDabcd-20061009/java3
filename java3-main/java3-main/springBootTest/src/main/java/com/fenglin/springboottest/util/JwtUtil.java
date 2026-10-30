@@ -13,14 +13,27 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Date;
 
 /**
- * JWT 工具：登录成功后签发 token，后续请求用 Authorization: Bearer &lt;token&gt; 携带。
+ * JWT 工具：登录成功后签发 token，后续请求用 Authorization: Bearer <token> 携带。
  * 密钥与有效期通过配置项 dream.jwt.secret / dream.jwt.expire-days 指定。
+ *
+ * token 中携带两个业务 claim：
+ * - username：用户名，方便接口直接取用
+ * - role：用户角色（user / admin），后台管理系统据此区分管理员
  */
 @Component
 public class JwtUtil {
 
     /** 用户名放到自定义 claim 里，方便接口直接取用 */
     private static final String CLAIM_USERNAME = "username";
+
+    /** 角色 claim：user=普通用户，admin=后台管理员 */
+    private static final String CLAIM_ROLE = "role";
+
+    /** 普通用户角色 */
+    public static final String ROLE_USER = "user";
+
+    /** 管理员角色 */
+    public static final String ROLE_ADMIN = "admin";
 
     private final SecretKey key;
     private final long expireMillis;
@@ -32,12 +45,18 @@ public class JwtUtil {
         this.expireMillis = Math.max(expireDays, 1) * 24L * 60 * 60 * 1000;
     }
 
-    /** 签发 token */
+    /** 签发普通用户 token（默认角色 user） */
     public String generate(Long userId, String username) {
+        return generate(userId, username, ROLE_USER);
+    }
+
+    /** 签发带角色的 token（后台管理员登录使用 ROLE_ADMIN） */
+    public String generate(Long userId, String username, String role) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim(CLAIM_USERNAME, username)
+                .claim(CLAIM_ROLE, role == null ? ROLE_USER : role)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expireMillis))
                 .signWith(key)
@@ -71,6 +90,12 @@ public class JwtUtil {
     public String getUsername(String token) {
         Claims claims = parse(token);
         return claims == null ? null : claims.get(CLAIM_USERNAME, String.class);
+    }
+
+    /** 取 token 角色；非管理员返回 null */
+    public String getRole(String token) {
+        Claims claims = parse(token);
+        return claims == null ? null : claims.get(CLAIM_ROLE, String.class);
     }
 
     /** token 有效期（天），配置回显用 */

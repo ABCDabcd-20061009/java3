@@ -16,6 +16,9 @@ import java.util.Set;
  * - 带 token 且合法 → 写入 UserContext（业务层据此拿到真实身份）
  * - 带 token 但非法/过期 → 需鉴权的接口返回 401，其余接口按未登录处理
  * - 未带 token → 需鉴权的接口返回 401，其余接口放行（首页浏览、搜索不需要登录）
+ *
+ * 后台管理接口（/api/admin/**，登录接口除外）额外要求 token 角色为 admin，
+ * 否则返回 401，避免普通用户的 token 越权访问管理后台。
  */
 @Component
 public class JwtInterceptor implements HandlerInterceptor {
@@ -33,6 +36,12 @@ public class JwtInterceptor implements HandlerInterceptor {
             "/api/user/profile"
     );
 
+    /** 后台管理接口统一前缀（除登录接口外，都要求管理员身份） */
+    private static final String ADMIN_PREFIX = "/api/admin/";
+
+    /** 管理员登录接口，允许匿名访问 */
+    private static final String ADMIN_LOGIN = "/api/admin/login";
+
     private final JwtUtil jwtUtil;
 
     public JwtInterceptor(JwtUtil jwtUtil) {
@@ -47,9 +56,13 @@ public class JwtInterceptor implements HandlerInterceptor {
         }
         String path = request.getRequestURI();
         boolean needAuth = AUTH_REQUIRED.contains(path);
+        boolean isAdminPath = path.startsWith(ADMIN_PREFIX);
 
         String token = resolveToken(request);
         if (token == null) {
+            if (isAdminPath && !ADMIN_LOGIN.equals(path)) {
+                throw new AuthException("请先以管理员身份登录");
+            }
             if (needAuth) {
                 throw new AuthException("请先登录");
             }
@@ -58,14 +71,29 @@ public class JwtInterceptor implements HandlerInterceptor {
 
         Claims claims = jwtUtil.parse(token);
         if (claims == null) {
+            if (isAdminPath && !ADMIN_LOGIN.equals(path)) {
+                throw new AuthException("管理员登录已过期，请重新登录");
+            }
             if (needAuth) {
                 throw new AuthException("登录已过期，请重新登录");
             }
             return true;   // 匿名接口：token 失效就当未登录，不影响浏览
         }
+
+        if (isAdminPath && !ADMIN_LOGIN.equals(path)) {
+            // 后台管理接口：必须是管理员 token
+            String role = claims.get("role", String.class);
+            if (!JwtUtil.ROLE_ADMIN.equals(role)) {
+                throw new AuthException("无管理员权限");
+            }
+        }
+
         try {
             UserContext.set(Long.valueOf(claims.getSubject()), claims.get("username", String.class));
         } catch (NumberFormatException e) {
+            if (isAdminPath && !ADMIN_LOGIN.equals(path)) {
+                throw new AuthException("管理员登录状态异常，请重新登录");
+            }
             if (needAuth) {
                 throw new AuthException("登录状态异常，请重新登录");
             }

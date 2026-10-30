@@ -6,7 +6,10 @@
     </button>
 
     <DreamBackground />
-    <HomePage v-if="currentUser" :user="currentUser" @logout="onLogout" />
+    <HomePage v-if="currentUser && !adminView" :user="currentUser" @logout="onLogout" @open-admin="openAdmin" />
+    <AdminLogin v-else-if="adminView === 'login'" @admin-login-success="onAdminLogin" @back="adminView = null" />
+    <AdminDashboard v-else-if="adminView === 'dashboard'" :admin="adminUser"
+                    @exit-admin="exitAdmin" @admin-session-expired="adminView = 'login'" />
     <LoginCard v-else @login-success="onLoginSuccess" />
   </div>
 </template>
@@ -16,6 +19,8 @@ import { ref } from 'vue'
 import DreamBackground from './components/DreamBackground.vue'
 import LoginCard from './components/LoginCard.vue'
 import HomePage from './components/HomePage.vue'
+import AdminLogin from './components/AdminLogin.vue'
+import AdminDashboard from './components/AdminDashboard.vue'
 
 const theme = ref('light')
 function toggleTheme() {
@@ -40,6 +45,42 @@ function onLogout() {
   currentUser.value = null
   localStorage.removeItem('dream-user')
   sessionStorage.removeItem('dream-user')
+}
+
+/* ---- 后台管理会话（独立于普通用户会话） ---- */
+const ADMIN_KEY = 'dream-admin'
+const adminView = ref(null)        // null（未进入后台）| 'login'（后台登录页）| 'dashboard'（后台管理页）
+const adminUser = ref(null)
+const savedAdmin = localStorage.getItem(ADMIN_KEY) || sessionStorage.getItem(ADMIN_KEY)
+if (savedAdmin) {
+  try {
+    adminUser.value = JSON.parse(savedAdmin)
+    adminView.value = 'dashboard'
+  } catch (_) { /* 数据损坏则忽略 */ }
+}
+
+/** 首页导航「后台管理」按钮：已登录后台则直接进后台，否则进后台登录页 */
+function openAdmin() {
+  const saved = localStorage.getItem(ADMIN_KEY) || sessionStorage.getItem(ADMIN_KEY)
+  if (saved) {
+    try {
+      adminUser.value = JSON.parse(saved)
+      adminView.value = 'dashboard'
+      return
+    } catch (_) { /* 忽略 */ }
+  }
+  adminView.value = 'login'
+}
+
+function onAdminLogin({ user }) {
+  adminUser.value = user
+  localStorage.setItem(ADMIN_KEY, JSON.stringify(user))
+  adminView.value = 'dashboard'
+}
+
+/** 退出后台：返回用户首页（保留用户登录态） */
+function exitAdmin() {
+  adminView.value = null
 }
 
 const moonIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>`

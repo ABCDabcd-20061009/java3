@@ -3,6 +3,7 @@ package com.fenglin.springboottest.controller;
 import com.fenglin.springboottest.common.Result;
 import com.fenglin.springboottest.dto.DreamQuery;
 import com.fenglin.springboottest.service.DreamService;
+import com.fenglin.springboottest.service.SiteConfigService;
 import com.fenglin.springboottest.vo.CategoryVO;
 import com.fenglin.springboottest.vo.DreamVO;
 import com.fenglin.springboottest.vo.HomeOverviewVO;
@@ -14,9 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * 首页展示接口：聚合数据、内容流、分类导航、热门搜索词。
+ * 首页展示接口：聚合数据、内容流、分类导航、热门搜索词、首页栏目配置。
  * 约定：POST JSON，统一 { code, message, data } 响应。
  */
 @RestController
@@ -24,9 +26,11 @@ import java.util.List;
 public class HomeController {
 
     private final DreamService dreamService;
+    private final SiteConfigService siteConfigService;
 
-    public HomeController(DreamService dreamService) {
+    public HomeController(DreamService dreamService, SiteConfigService siteConfigService) {
         this.dreamService = dreamService;
+        this.siteConfigService = siteConfigService;
     }
 
     /**
@@ -58,5 +62,20 @@ public class HomeController {
     @PostMapping("/hot-keywords")
     public Result<List<HotKeywordVO>> hotKeywords() {
         return Result.ok("ok", dreamService.hotKeywords());
+    }
+
+    /**
+     * 首页栏目配置（匿名可访问，由后台管理系统维护）。
+     * data = {
+     *   navMenu:  [ { key, label, target } ],
+     *   shortcut: [ { key, title, desc, iconKey, target } ],
+     *   platform: [ "喜马拉雅", ... ],
+     *   text:     { brand_name, hero_title, hero_sub, footer }
+     * }
+     * 接口异常时前端会回落到内置默认值，不会因为后端故障导致首页开天窗。
+     */
+    @PostMapping("/config")
+    public Result<Map<String, Object>> config() {
+        return Result.ok("ok", siteConfigService.frontConfig());
     }
 }

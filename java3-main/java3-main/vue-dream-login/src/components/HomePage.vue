@@ -8,7 +8,7 @@
             <path d="M12 3l2.2 4.6L19 8.4l-3.6 3.3.9 4.9L12 14.4 7.7 16.6l.9-4.9L5 8.4l4.8-.8z" />
           </svg>
         </div>
-        <span class="brand-name">粉金梦境</span>
+        <span class="brand-name">{{ siteText.brand_name }}</span>
       </div>
 
       <ul class="nav-menu">
@@ -19,6 +19,10 @@
       </ul>
 
       <div class="nav-user">
+        <button class="admin-entry" type="button" @click="$emit('open-admin')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
+          后台管理
+        </button>
         <div class="avatar" :title="user.username">{{ initial }}</div>
         <span class="nav-name">{{ user.username }}</span>
         <button class="logout-btn" type="button" @click="$emit('logout')">退出登录</button>
@@ -29,8 +33,8 @@
     <div class="content" v-if="view !== 'drama'">
       <!-- 搜索区 -->
       <section class="hero">
-        <h1 class="hero-title">粉金梦境</h1>
-        <p class="hero-sub">在 粉 金 色 的 梦 里 ，寻 找 属 于 你 的 星 光</p>
+        <h1 class="hero-title">{{ siteText.hero_title }}</h1>
+        <p class="hero-sub">{{ siteText.hero_sub }}</p>
         <p class="greet">欢迎回来，{{ user.username }} ✦ 今天想找一场怎样的梦？</p>
 
         <form class="search-bar" @submit.prevent="doSearch">
@@ -233,9 +237,9 @@
       <section class="section">
         <div class="section-head"><span class="dot"></span><span>快捷入口</span></div>
         <div class="cards">
-          <button class="shortcut-card" v-for="s in shortcuts" :key="s.title" type="button"
+          <button class="shortcut-card" v-for="s in shortcuts" :key="s.key || s.title" type="button"
                   @click="onShortcut(s)">
-            <span class="sc-ico" v-html="s.icon"></span>
+            <span class="sc-ico" v-html="shortcutIcon(s)"></span>
             <span class="sc-text">
               <span class="sc-title">{{ s.title }}</span>
               <span class="sc-desc">{{ s.desc }}</span>
@@ -244,7 +248,7 @@
         </div>
       </section>
 
-      <footer class="footer">粉 金 梦 境 · 愿 你 夜 夜 好 梦 ✦</footer>
+      <footer class="footer">{{ siteText.footer }}</footer>
     </div>
 
     <!-- ===== 广播剧视图（首页导航「广播剧」时接管主区域） ===== -->
@@ -381,22 +385,37 @@ import {
   fetchMyDreams,
   fetchUserProfile
 } from '../api'
+import { loadHomeConfig, iconSvg, DEFAULT_CONFIG } from '../homeConfig'
 
 const props = defineProps({
   user: { type: Object, required: true }
 })
-const emit = defineEmits(['logout'])
+const emit = defineEmits(['logout', 'open-admin'])
 
 const initial = ref((props.user.username || '梦').trim().charAt(0) || '梦')
 
 /* ---- 导航菜单 ---- */
-const menus = [
-  { key: 'square', label: '梦境广场' },
-  { key: 'drama', label: '广播剧' },
-  { key: 'favorites', label: '我的收藏' },
-  { key: 'profile', label: '个人中心' },
-  { key: 'help', label: '帮助中心' }
-]
+/* ---- 首页栏目配置 ----
+ * 导航菜单、快捷入口、站点文案均来自后台管理系统的「首页配置」，
+ * 接口不可用（后端未启动等）时由 homeConfig 回落到内置默认值，首页不会开天窗。
+ */
+// 先用内置默认值铺底，避免配置到达前导航栏/快捷入口闪一下空白
+const menus = ref([...DEFAULT_CONFIG.navMenu])
+const shortcuts = ref([...DEFAULT_CONFIG.shortcut])
+const siteText = ref({ ...DEFAULT_CONFIG.text })
+
+/** 快捷入口图标：按后台配置的 iconKey 取预置图标，未知 key 回落「星光」 */
+function shortcutIcon(s) {
+  return iconSvg(s && s.iconKey)
+}
+
+/** 每次进首页强制拉一次最新配置（管理员可能刚在后台改过） */
+async function loadSiteConfig() {
+  const cfg = await loadHomeConfig(true)
+  menus.value = cfg.navMenu
+  shortcuts.value = cfg.shortcut
+  siteText.value = cfg.text
+}
 
 /* ---- 轻提示 ---- */
 const toastMsg = ref('')
@@ -1030,61 +1049,35 @@ function onMenu(key) {
 }
 
 /* ---- 快捷入口 ---- */
-const shortcuts = [
-  {
-    title: '梦境广场',
-    desc: '看看大家最近做的梦',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17.5 14.5c2.6.4 4 2.3 4 4.5"/></svg>`
-  },
-  {
-    title: '我的收藏',
-    desc: '收藏的梦境与故事',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v16l-5-3.8L7 20z"/></svg>`
-  },
-  {
-    title: '梦境手记',
-    desc: '记录今晚做过的梦',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M9 10h6M9 14h6"/></svg>`
-  },
-  {
-    title: '个人中心',
-    desc: '我的梦境与创作数据',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
-  },
-  {
-    title: '广播剧',
-    desc: '热门平台小说改编，声画同享',
-    icon: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 5l9 4.5v5L12 19l-9-4.5z"/><path d="M3 9.5 12 14l9-4.5"/><path d="M12 14v5"/></svg>`
-  }
-]
+/* 卡片数据取自后台配置（loadSiteConfig），此处不再硬编码。 */
 
 function onShortcut(s) {
-  if (s.title === '梦境广场') {
-    view.value = 'feed'
-    activeCategory.value = ''
-    activeSort.value = 'newest'
-    resetFeed()
-    flash('已回到梦境精选 ✦')
-    return
+  // 统一按 target 跳转：与后台「首页配置」里填写的跳转目标一致，
+  // 后台新增一张卡片无需改动前端代码。
+  switch (s && s.target) {
+    case 'square':
+      view.value = 'feed'
+      activeCategory.value = ''
+      activeSort.value = 'newest'
+      resetFeed()
+      flash('已回到梦境精选 ✦')
+      return
+    case 'favorites':
+      openFavorites()
+      return
+    case 'editor':
+      openEditor(null)
+      return
+    case 'profile':
+      openProfile()
+      return
+    case 'drama':
+      view.value = 'drama'
+      flash('已打开广播剧 ✦')
+      return
+    default:
+      flash(`「${s && s.title}」页面建设中，敬请期待 ✦`)
   }
-  if (s.title === '我的收藏') {
-    openFavorites()
-    return
-  }
-  if (s.title === '梦境手记') {
-    openEditor(null)
-    return
-  }
-  if (s.title === '个人中心') {
-    openProfile()
-    return
-  }
-  if (s.title === '广播剧') {
-    view.value = 'drama'
-    flash('已打开广播剧 ✦')
-    return
-  }
-  flash(`「${s.title}」页面建设中，敬请期待 ✦`)
 }
 
 /* ---- 数字格式化：12345 → 1.2万 ---- */
@@ -1095,6 +1088,7 @@ function formatNum(n) {
 }
 
 onMounted(() => {
+  loadSiteConfig()
   loadOverview()
   loadFeed(false)
 })
@@ -1151,6 +1145,18 @@ onMounted(() => {
 }
 
 .nav-user { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+/* 首页导航栏「后台管理」入口 */
+.admin-entry {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: inherit; font-size: 13px; letter-spacing: .04em; cursor: pointer;
+  color: #b3708c; background: var(--field-bg);
+  border: 1px solid rgba(233, 184, 95, .45);
+  padding: 7px 14px; border-radius: 18px;
+  transition: color .2s, border-color .2s, background .25s, transform .15s;
+}
+.admin-entry svg { width: 15px; height: 15px; }
+.admin-entry:hover { color: #c98aa6; border-color: var(--gold-2); background: rgba(247, 217, 138, .18); transform: translateY(-1px); }
 .avatar {
   width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;

@@ -8,14 +8,22 @@ export function getSession() {
   try { return raw ? JSON.parse(raw) : null } catch (_) { return null }
 }
 
+// 读取后台管理员会话（key: dream-admin，独立于普通用户会话）
+export function getAdminSession() {
+  const raw = localStorage.getItem('dream-admin') || sessionStorage.getItem('dream-admin')
+  try { return raw ? JSON.parse(raw) : null } catch (_) { return null }
+}
+
 // 当前登录用户ID（未登录返回 undefined，后端据此跳过点赞状态查询）
 function currentUserId() {
   const session = getSession()
   return session && session.id ? session.id : undefined
 }
 
-async function request(path, payload) {
-  const session = getSession()
+async function request(path, payload, options) {
+  // options.admin=true 时使用管理员 token（后台管理系统接口）
+  const useAdmin = !!(options && options.admin)
+  const session = useAdmin ? getAdminSession() : getSession()
   const headers = { 'Content-Type': 'application/json' }
   // 携带 JWT token（登录后接口鉴权）
   if (session && session.token) {
@@ -89,6 +97,12 @@ export function fetchCategories() {
 // 热门搜索词
 export function fetchHotKeywords() {
   return request('/home/hot-keywords', {})
+}
+
+// 首页栏目配置（匿名可访问）：导航菜单 / 快捷入口 / 广播剧平台 / 站点文案
+// 返回 data = { navMenu, shortcut, platform, text }
+export function fetchHomeConfig() {
+  return request('/home/config', {})
 }
 
 /* ==================== 搜索 ==================== */
@@ -168,4 +182,89 @@ export function fetchDramaDetail({ id }) {
 // 广播剧分类导航（含各分类数量）
 export function fetchDramaCategories() {
   return request('/drama/categories', {})
+}
+
+/* ==================== 后台管理（独立管理员会话） ==================== */
+
+// 管理员登录（仅登录，无注册）：成功返回 data = { id, username, token }
+export function adminLogin({ username, password }) {
+  return request('/admin/login', { username, password })
+}
+
+// 当前管理员信息（需登录）
+export function adminInfo() {
+  return request('/admin/info', {}, { admin: true })
+}
+
+// 首页数据概览统计
+export function adminOverview() {
+  return request('/admin/overview', {}, { admin: true })
+}
+
+/* ---- 梦境管理 ---- */
+export function adminListDreams({ page = 1, size = 10, keyword = '', category = '', status } = {}) {
+  return request('/admin/dreams', { page, size, keyword, category, status }, { admin: true })
+}
+export function adminSaveDream(dream) {
+  return request('/admin/dream/save', { ...dream }, { admin: true })
+}
+export function adminDeleteDream({ id }) {
+  return request('/admin/dream/delete', { id }, { admin: true })
+}
+
+/* ---- 广播剧管理 ---- */
+export function adminListDramas({ page = 1, size = 10, keyword = '', category = '', platform = '', status } = {}) {
+  return request('/admin/dramas', { page, size, keyword, category, platform, status }, { admin: true })
+}
+export function adminSaveDrama(drama) {
+  return request('/admin/drama/save', { ...drama }, { admin: true })
+}
+export function adminDeleteDrama({ id }) {
+  return request('/admin/drama/delete', { id }, { admin: true })
+}
+
+/* ---- 分类管理（type: dream / drama） ---- */
+export function adminListCategories({ type = 'dream' } = {}) {
+  return request('/admin/categories', { type }, { admin: true })
+}
+export function adminSaveCategory(category) {
+  return request('/admin/category/save', { ...category }, { admin: true })
+}
+export function adminDeleteCategory({ id, type }) {
+  return request('/admin/category/delete', { id, type }, { admin: true })
+}
+
+/* ---- 用户管理 ---- */
+export function adminListUsers({ page = 1, size = 10, keyword = '' } = {}) {
+  return request('/admin/users', { page, size, keyword }, { admin: true })
+}
+export function adminDeleteUser({ id }) {
+  return request('/admin/user/delete', { id }, { admin: true })
+}
+
+/* ---- 搜索日志 ---- */
+export function adminListSearchLogs({ page = 1, size = 10, keyword = '' } = {}) {
+  return request('/admin/search-logs', { page, size, keyword }, { admin: true })
+}
+export function adminClearSearchLogs() {
+  return request('/admin/search-logs/clear', {}, { admin: true })
+}
+
+/* ---- 互动数据（点赞 / 收藏） ---- */
+export function adminListLikes({ page = 1, size = 10 } = {}) {
+  return request('/admin/likes', { page, size }, { admin: true })
+}
+export function adminListFavorites({ page = 1, size = 10 } = {}) {
+  return request('/admin/favorites', { page, size }, { admin: true })
+}
+
+/* ---- 首页配置（导航菜单 nav_menu / 快捷入口 shortcut / 广播剧平台 platform / 站点文案 site_text） ---- */
+export function adminListSiteConfig({ type = 'nav_menu' } = {}) {
+  return request('/admin/home-config/list', { type }, { admin: true })
+}
+export function adminSaveSiteConfig(cfg) {
+  return request('/admin/home-config/save', { ...cfg }, { admin: true })
+}
+export function adminDeleteSiteConfig({ id }) {
+  return request('/admin/home-config/delete', { id }, { admin: true })
 }

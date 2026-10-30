@@ -243,6 +243,7 @@ import DramaVisual from './DramaVisual.vue'
 import DramaMontage from './DramaMontage.vue'
 import DramaFrame from './DramaFrame.vue'
 import { videoFor } from '../data/dramaMedia'
+import { loadHomeConfig, DEFAULT_CONFIG } from '../homeConfig'
 
 /* ---- 轻提示 ---- */
 const toastMsg = ref('')
@@ -255,7 +256,15 @@ function flash(msg) {
 
 /* ---- 状态 ---- */
 const categories = ref([])
-const platforms = ['喜马拉雅', '猫耳FM', '晋江文学城', '蜻蜓FM', '凯叔讲故事']
+// 热门平台标签取自后台「首页配置」→ 广播剧平台，接口不可用时回落内置默认值
+const platforms = ref([...DEFAULT_CONFIG.platform])
+
+async function loadPlatforms() {
+  try {
+    const cfg = await loadHomeConfig()
+    if (Array.isArray(cfg.platform)) platforms.value = cfg.platform
+  } catch (_) { /* 保留默认值 */ }
+}
 const activeCategory = ref('')
 const activePlatform = ref('')
 const activeSort = ref('newest')
@@ -699,6 +708,7 @@ function formatNum(n) {
 }
 
 onMounted(() => {
+  loadPlatforms()
   loadCategories()
   loadList(false)
   // 预热语音列表：部分浏览器首次 getVoices() 返回空，需等 onvoiceschanged

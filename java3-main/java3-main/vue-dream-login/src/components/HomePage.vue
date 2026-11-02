@@ -415,6 +415,11 @@ async function loadSiteConfig() {
   menus.value = cfg.navMenu
   shortcuts.value = cfg.shortcut
   siteText.value = cfg.text
+  // 兜底：后台「首页配置」可能是旧的多页版（navMenu 里没有广播剧），会把该功能藏起来。
+  // 这里确保顶栏始终有「广播剧」入口，避免功能明明存在却点不进去。
+  if (!menus.value.some(m => m.key === 'drama')) {
+    menus.value = menus.value.concat([{ key: 'drama', label: '广播剧' }])
+  }
 }
 
 /* ---- 轻提示 ---- */
@@ -1052,9 +1057,17 @@ function onMenu(key) {
 /* 卡片数据取自后台配置（loadSiteConfig），此处不再硬编码。 */
 
 function onShortcut(s) {
-  // 统一按 target 跳转：与后台「首页配置」里填写的跳转目标一致，
+  const target = (s && s.target) || ''
+  // 兜底：后台可能把广播剧卡片指向不存在的独立页面（如 /drama.html），
+  // 这里只要 target 跟 drama 相关就走广播剧视图，避免点了「页面建设中」却进不去。
+  if (target === 'drama' || /drama/i.test(target)) {
+    view.value = 'drama'
+    flash('已打开广播剧 ✦')
+    return
+  }
+  // 其余按 target 跳转：与后台「首页配置」里填写的跳转目标一致，
   // 后台新增一张卡片无需改动前端代码。
-  switch (s && s.target) {
+  switch (target) {
     case 'square':
       view.value = 'feed'
       activeCategory.value = ''
@@ -1070,10 +1083,6 @@ function onShortcut(s) {
       return
     case 'profile':
       openProfile()
-      return
-    case 'drama':
-      view.value = 'drama'
-      flash('已打开广播剧 ✦')
       return
     default:
       flash(`「${s && s.title}」页面建设中，敬请期待 ✦`)

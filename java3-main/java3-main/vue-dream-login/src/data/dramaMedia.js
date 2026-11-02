@@ -28,6 +28,25 @@ export function slugOf(title) {
 
 const BASE = '/drama-media'
 
+// 首页广播剧卡片封面（实拍/插画图片，按用户提供的九张图顺序对应九部剧）
+// 文件位于 public/drama-media/covers/，扩展名与真实格式一致（webp/jpg）
+const COVERS = {
+  '雾港谜案': 'fog-harbor.jpg',
+  '晚风寄来的情书': 'love-letter.webp',
+  '星轨之外': 'star-track.webp',
+  '猫咪咖啡馆的午后': 'cat-cafe.webp',
+  '长安月明': 'changan-moon.webp',
+  '会发光的小怪兽': 'glow-monster.webp',
+  '第七次钟声': 'seventh-bell.webp',
+  '时间旅人的信': 'time-letter.webp',
+  '海边的旧信封': 'seaside-letter.jpg'
+}
+
+export function coverImg(title) {
+  const file = COVERS[String(title || '').trim()]
+  return file ? `${BASE}/covers/${file}` : ''
+}
+
 export function sceneImg(title) {
   return `${BASE}/scenes/${slugOf(title)}.png`
 }

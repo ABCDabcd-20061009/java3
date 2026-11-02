@@ -54,6 +54,8 @@
         <article class="drama-card" v-for="(d, i) in list" :key="d.id"
                  :style="{ animationDelay: (i * 0.05) + 's' }" @click="openPlayer(d)">
           <div class="card-cover" :class="'cover-' + (d.categoryCode || 'other')">
+            <img v-if="coverImg(d.title)" class="cover-img" :src="coverImg(d.title)" alt=""
+                 loading="lazy" @error="onCoverError" />
             <span class="card-tag">{{ d.category }}</span>
             <span class="cover-ini">{{ (d.title || '剧').charAt(0) }}</span>
             <span class="play-badge">
@@ -242,7 +244,7 @@ import { scriptOf, castOf, visualOf } from '../data/dramaScripts'
 import DramaVisual from './DramaVisual.vue'
 import DramaMontage from './DramaMontage.vue'
 import DramaFrame from './DramaFrame.vue'
-import { videoFor } from '../data/dramaMedia'
+import { videoFor, coverImg } from '../data/dramaMedia'
 import { loadHomeConfig, DEFAULT_CONFIG } from '../homeConfig'
 
 /* ---- 轻提示 ---- */
@@ -293,6 +295,11 @@ const mediaKey = ref(0)             // 变更即强制重建 media 元素（重�
 const mutedHint = ref(false)        // 是否被浏览器静音自动播放
 const videoBroken = ref(false)      // 本剧电视剧式视频缺失/加载失败时，回退到角色动画
 const videoSrc = computed(() => (player.value ? videoFor(player.value.title) : ''))
+
+/* 封面图加载失败时隐藏 img，自动回落到原先的分类渐变色封面 */
+function onCoverError(e) {
+  if (e && e.target) e.target.style.display = 'none'
+}
 
 /* ---- 声画剧场：逐句朗读小说正文 ---- */
 /* 示例视频只是画面占位、与小说内容无关，真正的内容在剧本里，所以默认走剧场模式 */
@@ -674,7 +681,7 @@ function localCards() {
     title: d.title, summary: d.summary, category: d.category,
     categoryCode: codeOf(d.category), tags: d.tags,
     platform: d.platform, duration: d.duration,
-    videoUrl: d.videoUrl, audioUrl: '', coverUrl: '', posterUrl: '',
+    videoUrl: d.videoUrl, audioUrl: '', coverUrl: coverImg(d.title), posterUrl: '',
     views: d.views, likes: d.likes
   }))
 }
@@ -864,6 +871,20 @@ onBeforeUnmount(() => {
 .cover-ancient { background: linear-gradient(135deg, #e6c98a, #cfa86a); }
 .cover-children { background: linear-gradient(135deg, #ffb3c9, #b8e0ff); }
 .cover-other { background: linear-gradient(135deg, #cfe3ff, #e6d6ff); }
+
+/* 封面图片：铺满原封面区域（120px 高、卡片同宽），保持原有比例大小 */
+.cover-img {
+  position: absolute; inset: 0; z-index: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center top;
+  display: block;
+}
+/* 图片之上的元素保持可见 */
+.card-cover .card-tag,
+.card-cover .play-badge,
+.card-cover .platform-badge { z-index: 2; }
+/* 大字号首字在图片下层作兜底，不再压住图片 */
+.cover-ini { z-index: 1; }
 
 .card-tag {
   position: absolute; top: 10px; left: 10px;

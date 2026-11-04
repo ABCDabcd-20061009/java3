@@ -1,0 +1,30 @@
+============================================================
+广播剧 9 张封面 备份清单与校验  生成于 2026-11-04 09:58:46
+============================================================
+
+文件清单 (文件名 | resized md5 | original md5):
+  fog-harbor.webp        R:8067042b0762  O:e15cb1d401212e460bb4cd3d43c97180
+  love-letter.webp       R:1e61a862b9de  O:c47272ade1cba4e5c7fd780e5f6c8bd2
+  star-track.webp        R:c0735ad29de8  O:3783ba847b0d621acd42e3e7fad43581
+  cat-cafe.webp          R:08c2f5afaeb9  O:1f716837001be7f73c94900653903649
+  changan-moon.webp      R:f52c9b5061db  O:28988eb216d0b1bd4643bb35699bd7d1
+  glow-monster.webp      R:c96fde8c2ee7  O:8705f136cc0df66d54ac40803b867650
+  seventh-bell.webp      R:8d2f1ffefd83  O:b39abed196f82e926238b5ba3b94bb82
+  time-letter.webp       R:bbab86162eb6  O:5609b2778c2f8298bc61d32f4960e330
+  seaside-letter.webp    R:ccca424ac455  O:78f69b86dcc7f3123a0563acee04b15f
+
+备份点位 (6 处，每处含 original/ 与 resized/ 子目录 + 2 个 zip):
+  1. D:/workSpace/java3/java3-main/java3-main/vue-dream-login\public\drama-media\covers-backup
+  2. D:/workSpace/drama-covers-backup
+  3. C:/Users/Administrator/WorkBuddy/2026-11-04-08-38-02/drama-covers-backup
+  4. C:/Users/Administrator/Pictures/drama-covers-backup
+  5. C:/Users/Administrator/Documents/drama-covers-backup
+  6. C:/Users/Administrator/Desktop/drama-covers-backup
+
+恢复方法:
+  A. 双击 vue-dream-login\restore-drama-covers.bat 一键恢复
+  B. 手动: 将任一点位 resized\*.webp 复制到
+     vue-dream-login\public\drama-media\covers\
+
+说明: original/ 为原尺寸图(262KB); resized/ 为缩小版(长边480px,211KB)。
+      前端页面使用 resized/ 内容(与 covers/ 主目录一致)。

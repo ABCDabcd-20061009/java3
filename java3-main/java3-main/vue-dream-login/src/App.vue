@@ -1,11 +1,12 @@
 <template>
   <div class="app-root" :class="theme">
-    <button class="theme-toggle" @click="toggleTheme"
+    <!-- 后台页面本身就是固定黑白冷调，隐藏主题切换按钮，避免压住“退出”按钮 -->
+    <button class="theme-toggle" v-if="!adminView" @click="toggleTheme"
             :aria-label="theme === 'dark' ? '切换到日间模式' : '切换到夜空模式'">
       <span v-html="theme === 'dark' ? sunIcon : moonIcon"></span>
     </button>
 
-    <DreamBackground />
+    <DreamBackground :mode="bgMode" />
     <HomePage v-if="currentUser && !adminView" :user="currentUser" @logout="onLogout" @open-admin="openAdmin" />
     <AdminLogin v-else-if="adminView === 'login'" @admin-login-success="onAdminLogin" @back="adminView = null" />
     <AdminDashboard v-else-if="adminView === 'dashboard'" :admin="adminUser"
@@ -15,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import DreamBackground from './components/DreamBackground.vue'
 import LoginCard from './components/LoginCard.vue'
 import HomePage from './components/HomePage.vue'
@@ -83,6 +84,12 @@ function exitAdmin() {
   adminView.value = null
 }
 
+/* ---- 背景模式：根据当前视图切换登入/首页背景图与风格 ---- */
+const bgMode = computed(() => {
+  if (adminView.value) return 'login'               // 后台（登录页+管理页）：与登入页一致的黑白冷调背景
+  return currentUser.value ? 'home' : 'login'       // 已登录→首页；未登录→登入
+})
+
 const moonIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>`
 const sunIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
 </script>
@@ -93,6 +100,9 @@ const sunIcon = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" str
   --pink-3: #ffd9e8;
   --gold-2: #f7d98a;
   --gold-3: #ffe9b0;
+  /* 主渐变双色（按钮/品牌/标题等），由各页面按风格覆盖 */
+  --grad-a: #f0a9c4;
+  --grad-b: #e9b85f;
   --ink: #9a6b7d;
   --sub: #b88aa0;
   --muted: #a98298;

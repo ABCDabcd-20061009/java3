@@ -1,5 +1,5 @@
 <template>
-  <div class="stage">
+  <div class="stage mono">
     <div class="card">
       <div class="brand">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -430,7 +430,7 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
 
 .title {
   font-size: 30px; font-weight: 600; letter-spacing: .14em;
-  background: linear-gradient(120deg, #c98aa6, #e9b85f 60%, #c98aa6);
+  background: linear-gradient(120deg, #c98aa6, var(--grad-b) 60%, #c98aa6);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .subtitle { margin-top: 8px; font-size: 13px; letter-spacing: .22em; color: var(--sub); }
@@ -483,7 +483,7 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
   transition: background .3s;
 }
 .strength-bars .bar.on.lv1 { background: #f0a0a8; }
-.strength-bars .bar.on.lv2 { background: #e9b85f; }
+.strength-bars .bar.on.lv2 { background: var(--grad-b); }
 .strength-bars .bar.on.lv3 { background: #8fd0a0; }
 .strength-text { font-size: 12px; letter-spacing: .1em; }
 .strength-text.lv1 { color: #d06a78; }
@@ -491,7 +491,7 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
 .strength-text.lv3 { color: #6faf82; }
 
 .eye { display: flex; align-items: center; justify-content: center; border: 0; background: transparent; cursor: pointer; color: #d49bb4; padding: 2px; transition: color .2s; }
-.eye:hover { color: #e9b85f; }
+.eye:hover { color: var(--grad-b); }
 .eye :deep(svg) { width: 18px; height: 18px; }
 
 .code-field { padding-right: 10px; }
@@ -499,7 +499,7 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
   flex: 0 0 auto; border: 0; cursor: pointer; white-space: nowrap;
   font-family: inherit; font-size: 12px; letter-spacing: .05em; color: #fff;
   padding: 7px 12px; border-radius: 10px;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 6px 14px rgba(233, 184, 95, .35);
   transition: filter .2s, opacity .2s;
 }
@@ -511,19 +511,19 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
   font-size: 12.5px; color: var(--muted); cursor: pointer;
   margin: 2px 2px 0; line-height: 1.5;
 }
-.agree input { accent-color: #e9b85f; width: 15px; height: 15px; margin-top: 1px; flex: 0 0 auto; }
+.agree input { accent-color: var(--grad-b); width: 15px; height: 15px; margin-top: 1px; flex: 0 0 auto; }
 
 .row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin: 2px 2px 20px; }
 .remember { display: flex; align-items: center; gap: 7px; color: var(--muted); cursor: pointer; }
-.remember input { accent-color: #e9b85f; width: 15px; height: 15px; }
+.remember input { accent-color: var(--grad-b); width: 15px; height: 15px; }
 .link { color: var(--link); text-decoration: none; transition: color .2s; }
-.link:hover { color: #e9b85f; text-decoration: underline; }
+.link:hover { color: var(--grad-b); text-decoration: underline; }
 
 .btn {
   width: 100%; border: 0; cursor: pointer;
   padding: 13px; border-radius: 14px;
   font-size: 16px; letter-spacing: .3em; font-family: inherit; color: #fff;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 10px 24px rgba(233, 184, 95, .4);
   transition: transform .15s, box-shadow .25s, filter .25s, opacity .2s;
 }
@@ -563,4 +563,76 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
 @media (prefers-reduced-motion: reduce) {
   .card { animation: none; }
 }
+
+/* ===== 登入页风格：紧贴第一张图（黑白冷调、沉稳高级） ===== */
+.stage.mono {
+  --grad-a: #efeff3;            /* 铂金 */
+  --grad-b: #c4c4cf;            /* 银灰 */
+  --ink: #f2f2f5;
+  --sub: #b9b9c4;
+  --muted: #a6a6b2;
+  --link: #d8d8e2;
+  --field-bg: rgba(255, 255, 255, .07);
+  --field-border: rgba(255, 255, 255, .16);
+  --input-text: #f2f2f5;
+  --placeholder: #9a9aa6;
+  --card-bg: rgba(16, 16, 20, .5);
+  --card-border: rgba(255, 255, 255, .14);
+  --panel-bg: rgba(20, 20, 26, .96);
+  --gold-2: #c4c4cf;
+  /* 卡片靠左，避免压住右侧人物身体 */
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 24px 24px max(6vw, 56px);
+}
+.stage.mono .card { margin: 0; }
+/* 窄屏（人物基本不可见）时卡片居中，保证可用性 */
+@media (max-width: 760px) {
+  .stage.mono { align-items: center; padding-left: 24px; }
+}
+
+.stage.mono .card {
+  background: rgba(16, 16, 20, .5);
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
+  color: var(--ink);
+}
+
+.stage.mono .brand {
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .4);
+}
+.stage.mono .brand svg { stroke: #2a2a30; }
+
+.stage.mono .title {
+  background: linear-gradient(120deg, #ffffff, #cfcfd8);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.stage.mono .subtitle { color: var(--sub); }
+
+.stage.mono .btn,
+.stage.mono .code-btn {
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+  color: #1c1c22;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .35);
+}
+.stage.mono .btn:hover:not(:disabled),
+.stage.mono .code-btn:hover:not(:disabled) { filter: brightness(1.06); }
+
+.stage.mono .field:focus-within {
+  border-color: var(--grad-b);
+  box-shadow: 0 0 0 3px rgba(196, 196, 207, .25);
+}
+.stage.mono .eye:hover { color: var(--grad-b); }
+.stage.mono .link:hover { color: var(--grad-b); }
+.stage.mono .agree input,
+.stage.mono .remember input { accent-color: var(--grad-b); }
+
+.stage.mono .strength-bars .bar.on.lv1 { background: #c9c9d2; }
+.stage.mono .strength-bars .bar.on.lv2 { background: var(--grad-b); }
+.stage.mono .strength-text.lv1 { color: #c9c9d2; }
+.stage.mono .strength-text.lv2 { color: #d9c27a; }
+
+.stage.mono .social-btn { background: rgba(255, 255, 255, .07); border-color: rgba(255, 255, 255, .16); }
+.stage.mono .alt { color: var(--muted); }
 </style>

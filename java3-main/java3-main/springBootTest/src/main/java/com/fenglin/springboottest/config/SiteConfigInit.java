@@ -74,7 +74,7 @@ public class SiteConfigInit implements ApplicationRunner {
     private List<SiteConfig> seeds() {
         return Arrays.asList(
                 // ---- 导航菜单 nav_menu（5 条）----
-                nav("square", "梦境精选", "square", 1),
+                nav("square", "动漫人物", "square", 1),
                 nav("favorites", "我的收藏", "favorites", 2),
                 nav("profile", "我的梦境", "profile", 3),
                 nav("drama", "广播剧", "drama", 4),
@@ -83,7 +83,7 @@ public class SiteConfigInit implements ApplicationRunner {
                 shortcut("write_dream", "写一场梦", "把昨夜的梦记录下来", "edit", "profile", 1),
                 shortcut("go_favorites", "我的收藏", "回头看看收藏的梦", "heart", "favorites", 2),
                 shortcut("go_drama", "广播剧", "戴上耳机听一场梦", "play", "drama", 3),
-                shortcut("go_square", "梦境精选", "看看大家做了什么梦", "star", "square", 4),
+                shortcut("go_square", "动漫人物", "看看喜欢的动漫角色", "star", "square", 4),
                 shortcut("go_profile", "个人中心", "我的创作与数据", "user", "profile", 5),
                 // ---- 广播剧平台 platform（5 条）----
                 platform("喜马拉雅", 1),
@@ -91,11 +91,10 @@ public class SiteConfigInit implements ApplicationRunner {
                 platform("晋江文学城", 3),
                 platform("蜻蜓FM", 4),
                 platform("凯叔讲故事", 5),
-                // ---- 站点文案 site_text（4 条，键固定）----
+                // ---- 站点文案 site_text（3 条，键固定）----
                 text("brand_name", "粉金梦境", 1),
-                text("hero_title", "把梦留在云朵上", 2),
-                text("hero_sub", "记录、分享、聆听 —— 每一场梦都值得被温柔收藏", 3),
-                text("footer", "粉金梦境 · 愿你夜夜好梦 ✦", 4));
+                text("hero_sub", "记录、分享、聆听 —— 每一场梦都值得被温柔收藏", 2),
+                text("footer", "粉金梦境 · 愿你夜夜好梦 ✦", 3));
     }
 
     private SiteConfig nav(String key, String label, String target, int sortNo) {

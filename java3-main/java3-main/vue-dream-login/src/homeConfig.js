@@ -7,7 +7,7 @@ import { fetchHomeConfig } from './api'
 /** 站点文案内置默认值（与后端 SiteConfigInit 种子保持一致） */
 export const DEFAULT_CONFIG = {
   navMenu: [
-    { key: 'square', label: '梦境精选', target: 'square' },
+    { key: 'square', label: '动漫人物', target: 'square' },
     { key: 'favorites', label: '我的收藏', target: 'favorites' },
     { key: 'profile', label: '我的梦境', target: 'profile' },
     { key: 'drama', label: '广播剧', target: 'drama' },
@@ -17,13 +17,12 @@ export const DEFAULT_CONFIG = {
     { key: 'write_dream', title: '写一场梦', desc: '把昨夜的梦记录下来', iconKey: 'edit', target: 'profile' },
     { key: 'go_favorites', title: '我的收藏', desc: '回头看看收藏的梦', iconKey: 'heart', target: 'favorites' },
     { key: 'go_drama', title: '广播剧', desc: '戴上耳机听一场梦', iconKey: 'play', target: 'drama' },
-    { key: 'go_square', title: '梦境精选', desc: '看看大家做了什么梦', iconKey: 'star', target: 'square' },
+    { key: 'go_square', title: '动漫人物', desc: '看看喜欢的动漫角色', iconKey: 'star', target: 'square' },
     { key: 'go_profile', title: '个人中心', desc: '我的创作与数据', iconKey: 'user', target: 'profile' }
   ],
   platform: ['喜马拉雅', '猫耳FM', '晋江文学城', '蜻蜓FM', '凯叔讲故事'],
   text: {
     brand_name: '粉金梦境',
-    hero_title: '把梦留在云朵上',
     hero_sub: '记录、分享、聆听 —— 每一场梦都值得被温柔收藏',
     footer: '粉金梦境 · 愿你夜夜好梦 ✦'
   }

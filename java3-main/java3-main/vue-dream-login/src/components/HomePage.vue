@@ -1,5 +1,5 @@
 <template>
-  <div class="home-stage">
+  <div class="home-stage dreamy">
     <!-- ===== 顶部导航栏 ===== -->
     <nav class="navbar">
       <div class="nav-brand">
@@ -33,7 +33,6 @@
     <div class="content" v-if="view !== 'drama'">
       <!-- 搜索区 -->
       <section class="hero">
-        <h1 class="hero-title">{{ siteText.hero_title }}</h1>
         <p class="hero-sub">{{ siteText.hero_sub }}</p>
         <p class="greet">欢迎回来，{{ user.username }} ✦ 今天想找一场怎样的梦？</p>
 
@@ -133,15 +132,15 @@
           <span>{{ sectionTitle }}</span>
           <span class="count">{{ sectionCount }}</span>
           <span class="mode-tag" v-if="isDemo">演示模式</span>
-          <button class="write-btn" type="button" v-if="view === 'feed'" @click="openEditor(null)">
+          <button class="write-btn" type="button" v-if="view === 'feed' && !showAnime" @click="openEditor(null)">
             + 记录梦境
           </button>
-          <button class="clear-btn" type="button" v-else @click="backToFeed">
+          <button class="clear-btn" type="button" v-if="view !== 'feed'" @click="backToFeed">
             ← 返回精选
           </button>
         </div>
 
-        <div class="filters" v-if="view === 'feed'">
+        <div class="filters" v-if="view === 'feed' && !showAnime">
           <div class="tabs">
             <button class="tab" :class="{ active: activeCategory === '' }" type="button"
                     @click="selectCategory('')">全部</button>
@@ -162,9 +161,10 @@
         <div class="cards" v-else>
           <article class="dream-card" v-for="(d, i) in displayList" :key="d.id"
                    :style="{ animationDelay: (i * 0.05) + 's' }" @click="openDetail(d)">
-            <div class="card-cover" :class="'cover-' + (d.categoryCode || 'essay')">
+            <div class="card-cover" :class="['cover-' + (d.categoryCode || 'essay'), { 'anime-cover': !!d.img }]">
               <span class="card-tag">{{ d.category }}</span>
-              <span class="cover-ini">{{ (d.title || '梦').charAt(0) }}</span>
+              <img v-if="d.img" class="card-img" :src="d.img" :alt="d.title" loading="lazy" />
+              <span v-else class="cover-ini">{{ (d.title || '梦').charAt(0) }}</span>
             </div>
             <div class="card-body">
               <div class="card-title">{{ d.title }}</div>
@@ -187,7 +187,7 @@
                 <button class="mini-btn" type="button" title="编辑" @click.stop="openEditor(d)">编辑</button>
                 <button class="mini-btn danger" type="button" title="删除" @click.stop="askDelete(d)">删除</button>
               </template>
-              <template v-else>
+              <template v-else-if="!d.anime">
                 <button class="like-btn" :class="{ liked: d.liked }" type="button" title="点赞" @click.stop="likeDream(d)">
                   <svg viewBox="0 0 24 24" :fill="d.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/></svg>
                   {{ formatNum(d.likes) }}
@@ -209,7 +209,7 @@
       </section>
 
       <!-- 热门推荐（大家都在看） -->
-      <section class="section" v-if="view === 'feed' && hotRail.length && activeSort === 'newest' && !activeCategory">
+      <section class="section" v-if="view === 'feed' && !showAnime && hotRail.length && activeSort === 'newest' && !activeCategory">
         <div class="section-head">
           <span class="dot"></span>
           <span>大家都在看</span>
@@ -261,9 +261,12 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
 
-        <div class="detail-cover" :class="'cover-' + (detail.categoryCode || 'essay')">
-          <span class="card-tag">{{ detail.category }}</span>
-          <span class="detail-ini">{{ (detail.title || '梦').charAt(0) }}</span>
+        <div class="detail-cover" :class="['cover-' + (detail.categoryCode || 'essay'), { 'has-img': !!detail.img, 'anime-detail': !!detail.anime }]">
+          <img v-if="detail.img" class="detail-img" :class="{ 'is-anime': !!detail.anime }" :src="detail.img" :alt="detail.title" />
+          <template v-else>
+            <span class="card-tag">{{ detail.category }}</span>
+            <span class="detail-ini">{{ (detail.title || '梦').charAt(0) }}</span>
+          </template>
         </div>
 
         <h2 class="detail-title">{{ detail.title }}</h2>
@@ -276,11 +279,11 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             {{ formatNum(detail.views) }} 次浏览
           </span>
-          <button class="like-btn" :class="{ liked: detail.liked }" type="button" @click.stop="likeDream(detail)">
+          <button v-if="!detail.anime" class="like-btn" :class="{ liked: detail.liked }" type="button" @click.stop="likeDream(detail)">
             <svg viewBox="0 0 24 24" :fill="detail.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/></svg>
             {{ formatNum(detail.likes) }}
           </button>
-          <button class="fav-btn" :class="{ active: detail.favorited }" type="button" @click.stop="favoriteDream(detail)">
+          <button v-if="!detail.anime" class="fav-btn" :class="{ active: detail.favorited }" type="button" @click.stop="favoriteDream(detail)">
             <svg viewBox="0 0 24 24" :fill="detail.favorited ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v16l-5-3.8L7 20z"/></svg>
             {{ detail.favorited ? '已收藏' : '收藏' }}
           </button>
@@ -386,6 +389,7 @@ import {
   fetchUserProfile
 } from '../api'
 import { loadHomeConfig, iconSvg, DEFAULT_CONFIG } from '../homeConfig'
+import { animeChars } from '../data/animeChars'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -432,7 +436,7 @@ function flash(msg) {
 }
 
 /* ---- 首页展示状态 ---- */
-/** 当前主视图：feed 梦境精选 / favorites 我的收藏 / profile 个人中心（我的梦境） */
+/** 当前主视图：feed 动漫人物 / favorites 我的收藏 / profile 个人中心（我的梦境） */
 const view = ref('feed')
 const stats = ref(null)
 const categories = ref([])
@@ -447,6 +451,9 @@ const loadingFeed = ref(false)
 const activeCategory = ref('')
 const activeSort = ref('newest')
 const isDemo = ref(false)
+
+/** 首页「梦境精选」已改为「动漫人物」：feed 视图展示 15 张角色图（沿用梦境卡片格式） */
+const showAnime = ref(true)
 
 /* ---- 我的收藏状态 ---- */
 const favorites = ref([])
@@ -467,33 +474,33 @@ const loadingMine = ref(false)
 const displayList = computed(() => {
   if (view.value === 'favorites') return favorites.value
   if (view.value === 'profile') return myDreams.value
-  return feed.value
+  return showAnime.value ? animeChars : feed.value
 })
 const displayLoading = computed(() => {
   if (view.value === 'favorites') return loadingFav.value
   if (view.value === 'profile') return loadingMine.value
-  return loadingFeed.value
+  return showAnime.value ? false : loadingFeed.value
 })
 const displayHasMore = computed(() => {
   if (view.value === 'favorites') return favHasMore.value
   if (view.value === 'profile') return myHasMore.value
-  return hasMore.value
+  return showAnime.value ? false : hasMore.value
 })
 
 const sectionTitle = computed(() => {
   if (view.value === 'favorites') return '我的收藏'
   if (view.value === 'profile') return '我的梦境'
-  return '梦境精选'
+  return showAnime.value ? '动漫人物' : '梦境精选'
 })
 const sectionCount = computed(() => {
   if (view.value === 'favorites') return `共 ${formatNum(favTotal.value)} 场梦`
   if (view.value === 'profile') return `共 ${formatNum(myTotal.value)} 场梦`
-  return `共 ${formatNum(feedTotal.value)} 场梦`
+  return showAnime.value ? `共 ${animeChars.length} 位角色` : `共 ${formatNum(feedTotal.value)} 场梦`
 })
 const emptyText = computed(() => {
   if (view.value === 'favorites') return '还没有收藏任何梦，点卡片右下角的书签把它收下来吧 ✦'
   if (view.value === 'profile') return '你还没有记录过梦境，点上面的「写一场梦」开始吧 ✦'
-  return '这里还空空的，去写下今晚的梦吧 ✦'
+  return showAnime.value ? '这里还空空的，去收藏喜欢的角色吧 ✦' : '这里还空空的，去写下今晚的梦吧 ✦'
 })
 
 const profileStats = computed(() => profile.value || {})
@@ -1136,7 +1143,7 @@ onMounted(() => {
 .brand-badge svg { width: 19px; height: 19px; }
 .brand-name {
   font-size: 17px; font-weight: 600; letter-spacing: .1em; white-space: nowrap;
-  background: linear-gradient(120deg, #c98aa6, #e9b85f 60%, #c98aa6);
+  background: linear-gradient(120deg, #c98aa6, var(--grad-b) 60%, #c98aa6);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 
@@ -1149,7 +1156,7 @@ onMounted(() => {
 .nav-menu li:hover { color: var(--ink); background: var(--field-bg); }
 .nav-menu li.active {
   color: #fff;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 6px 14px rgba(233, 184, 95, .35);
 }
 
@@ -1170,7 +1177,7 @@ onMounted(() => {
   width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 15px; color: #fff;
-  background: linear-gradient(135deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 6px 14px rgba(233, 184, 95, .35);
 }
 .nav-name {
@@ -1192,7 +1199,7 @@ onMounted(() => {
 .hero { text-align: center; padding: 40px 0 6px; }
 .hero-title {
   font-size: 44px; font-weight: 600; letter-spacing: .14em;
-  background: linear-gradient(120deg, #c98aa6, #e9b85f 60%, #c98aa6);
+  background: linear-gradient(120deg, #c98aa6, var(--grad-b) 60%, #c98aa6);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hero-sub { margin-top: 12px; font-size: 13px; letter-spacing: .22em; color: var(--sub); }
@@ -1223,7 +1230,7 @@ onMounted(() => {
   flex: 0 0 auto; border: 0; cursor: pointer; font-family: inherit;
   font-size: 14px; letter-spacing: .2em; color: #fff;
   padding: 11px 24px; border-radius: 22px;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 8px 18px rgba(233, 184, 95, .38);
   transition: transform .15s, filter .2s, opacity .2s;
 }
@@ -1238,7 +1245,7 @@ onMounted(() => {
   padding: 6px 14px; border-radius: 16px; cursor: pointer;
   transition: color .2s, border-color .2s, transform .15s;
 }
-.chip:hover { color: #e9b85f; border-color: var(--gold-2); transform: translateY(-1px); }
+.chip:hover { color: var(--grad-b); border-color: var(--gold-2); transform: translateY(-1px); }
 .chip-count {
   margin-left: 6px; font-size: 11px; color: #d9a844;
   padding: 1px 6px; border-radius: 8px; background: rgba(247, 217, 138, .28);
@@ -1260,7 +1267,7 @@ onMounted(() => {
 }
 .stat-num {
   font-size: 24px; font-weight: 600; letter-spacing: .03em;
-  background: linear-gradient(120deg, #c98aa6, #e9b85f 70%);
+  background: linear-gradient(120deg, #c98aa6, var(--grad-b) 70%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .stat-label { font-size: 12.5px; color: var(--muted); letter-spacing: .1em; }
@@ -1271,7 +1278,7 @@ onMounted(() => {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   font-size: 15px; color: var(--ink); letter-spacing: .08em; margin-bottom: 16px;
 }
-.section-head .dot { width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(135deg, #f0a9c4, #e9b85f); }
+.section-head .dot { width: 6px; height: 6px; border-radius: 50%; background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); }
 .section-head .count { font-size: 12.5px; color: var(--muted); letter-spacing: .03em; }
 .mode-tag {
   font-size: 11.5px; color: #d9a844; letter-spacing: .05em;
@@ -1285,13 +1292,13 @@ onMounted(() => {
   padding: 5px 12px; border-radius: 14px;
   transition: color .2s, border-color .2s;
 }
-.clear-btn:hover { color: #e9b85f; border-color: var(--gold-2); }
+.clear-btn:hover { color: var(--grad-b); border-color: var(--gold-2); }
 
 .write-btn {
   margin-left: auto; font-family: inherit; cursor: pointer;
   font-size: 12.5px; letter-spacing: .08em; color: #fff;
   border: 0; padding: 8px 18px; border-radius: 18px;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 8px 18px rgba(233, 184, 95, .34);
   transition: transform .15s, filter .2s;
 }
@@ -1313,7 +1320,7 @@ onMounted(() => {
 .tab:hover { color: var(--ink); transform: translateY(-1px); }
 .tab.active {
   color: #fff; border-color: transparent;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 6px 14px rgba(233, 184, 95, .35);
 }
 .tab-count { margin-left: 6px; font-size: 11px; opacity: .8; }
@@ -1328,7 +1335,7 @@ onMounted(() => {
   font-size: 12.5px; letter-spacing: .05em; color: var(--muted);
   padding: 5px 14px; border-radius: 15px; transition: color .2s, background .25s;
 }
-.sort-btn.active { color: #fff; background: linear-gradient(120deg, #f0a9c4, #e9b85f); }
+.sort-btn.active { color: #fff; background: linear-gradient(120deg, var(--grad-a), var(--grad-b)); }
 
 /* ===== 卡片网格 ===== */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
@@ -1360,6 +1367,13 @@ onMounted(() => {
   font-size: 40px; font-weight: 600; letter-spacing: .06em;
   color: rgba(255, 255, 255, .92);
   text-shadow: 0 2px 12px rgba(150, 100, 125, .45);
+}
+
+/* 动漫人物封面：用图片替代文字首字，并加高以更好展示角色 */
+.card-cover.anime-cover { height: 210px; }
+.card-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block;
 }
 
 .card-tag {
@@ -1394,7 +1408,7 @@ onMounted(() => {
   width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: #fff;
-  background: linear-gradient(135deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
 }
 .foot-author { max-width: 62px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot-time { white-space: nowrap; }
@@ -1451,7 +1465,7 @@ onMounted(() => {
   font-family: inherit; cursor: pointer;
   font-size: 13.5px; letter-spacing: .12em; color: #fff;
   padding: 11px 34px; border: 0; border-radius: 24px;
-  background: linear-gradient(120deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 10px 22px rgba(233, 184, 95, .34);
   transition: transform .15s, filter .2s, opacity .2s;
 }
@@ -1476,7 +1490,7 @@ onMounted(() => {
   flex: 0 0 auto; width: 26px; height: 26px; border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
   font-size: 13px; color: #fff;
-  background: linear-gradient(135deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
 }
 .rail-main { min-width: 0; flex: 1; }
 .rail-meta {
@@ -1555,6 +1569,19 @@ onMounted(() => {
   margin-bottom: 18px;
 }
 .detail-ini { font-size: 52px; font-weight: 600; color: rgba(255, 255, 255, .92); text-shadow: 0 2px 14px rgba(150, 100, 125, .45); }
+.detail-cover.has-img { height: 248px; }
+.detail-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 16px; }
+
+/* 动漫人物详情：完整展示整张图（不裁剪），宽/高图都能完整容纳 */
+.detail-cover.anime-detail { height: auto; background: rgba(255, 255, 255, .5); border-radius: 16px; }
+.detail-img.is-anime {
+  position: relative; inset: auto;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 70vh;
+  object-fit: contain;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(120, 70, 100, .18);
+}
 
 .detail-title { font-size: 22px; color: var(--ink); letter-spacing: .05em; margin-bottom: 12px; }
 .detail-meta {
@@ -1583,7 +1610,7 @@ onMounted(() => {
   width: 58px; height: 58px; flex: 0 0 auto; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 23px; color: #fff; letter-spacing: .04em;
-  background: linear-gradient(135deg, #f0a9c4, #e9b85f);
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 8px 20px rgba(233, 184, 95, .38);
 }
 .profile-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
@@ -1709,5 +1736,86 @@ onMounted(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .dream-card, .detail-mask, .detail-panel, .editor-mask, .editor-panel, .confirm-panel { animation: none; }
+}
+
+/* ===== 首页风格：紧贴第二张图（森林绿 + 暖金 + 奶油，梦幻浪漫） ===== */
+.home-stage.dreamy {
+  --grad-a: #7fb39a;            /* 柔和鼠尾草绿 */
+  --grad-b: #d9c27a;            /* 暖金 / 奶油 */
+  --ink: #33503f;
+  --sub: #6f9079;
+  --muted: #7e978a;
+  --link: #4f8a66;
+  --field-bg: rgba(255, 253, 246, .62);
+  --field-border: rgba(255, 255, 255, .72);
+  --input-text: #33503f;
+  --placeholder: #9bb0a2;
+  --card-bg: rgba(255, 252, 243, .52);
+  --card-border: rgba(255, 255, 255, .62);
+  --panel-bg: rgba(255, 252, 244, .95);
+  --gold-2: #d9c27a;
+}
+
+.home-stage.dreamy .brand-badge {
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 6px 16px rgba(217, 194, 122, .4);
+}
+.home-stage.dreamy .brand-name,
+.home-stage.dreamy .hero-title {
+  background: linear-gradient(120deg, #4f8a66, #d9c27a 60%, #4f8a66);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.home-stage.dreamy .hero-sub,
+.home-stage.dreamy .greet { color: var(--sub); }
+.home-stage.dreamy .greet { color: var(--ink); }
+
+.home-stage.dreamy .nav-menu li.active {
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+}
+.home-stage.dreamy .admin-entry { color: #4f7a5e; border-color: rgba(217, 194, 122, .5); }
+.home-stage.dreamy .admin-entry:hover { color: #4f8a66; border-color: var(--gold-2); background: rgba(217, 194, 122, .18); }
+.home-stage.dreamy .avatar,
+.home-stage.dreamy .mini-avatar,
+.home-stage.dreamy .rail-rank,
+.home-stage.dreamy .profile-avatar {
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 6px 14px rgba(217, 194, 122, .35);
+}
+
+.home-stage.dreamy .stat-num {
+  background: linear-gradient(120deg, #4f8a66, #d9c27a 70%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.home-stage.dreamy .section-head .dot { background: linear-gradient(135deg, var(--grad-a), var(--grad-b)); }
+
+.home-stage.dreamy .search-btn,
+.home-stage.dreamy .write-btn,
+.home-stage.dreamy .more-btn,
+.home-stage.dreamy .tab.active,
+.home-stage.dreamy .sort-btn.active {
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 8px 18px rgba(127, 179, 154, .34);
+}
+.home-stage.dreamy .search-btn:hover:not(:disabled),
+.home-stage.dreamy .write-btn:hover,
+.home-stage.dreamy .more-btn:hover:not(:disabled) { filter: brightness(1.04); }
+
+.home-stage.dreamy .card-cover,
+.home-stage.dreamy .detail-cover {
+  /* 封面占位改用柔和绿色系，呼应首页婚礼绿 */
+}
+.home-stage.dreamy .field input:focus,
+.home-stage.dreamy .field select:focus,
+.home-stage.dreamy .field textarea:focus {
+  border-color: var(--gold-2);
+  box-shadow: 0 0 0 3px rgba(217, 194, 122, .28);
+}
+.home-stage.dreamy .detail-mask,
+.home-stage.dreamy .editor-mask {
+  background: rgba(34, 54, 44, .32);
+}
+.home-stage.dreamy .toast {
+  background: rgba(79, 138, 102, .95);
+  box-shadow: 0 10px 30px rgba(79, 138, 102, .4);
 }
 </style>

@@ -1,5 +1,5 @@
 @echo off
-rem ===== 0. ·ÀÉÁÍË£º·Ç×Ó½ø³ÌÄ£Ê½Ê±ÓÃ cmd /k ÖØÐÂÀ­Æð×ÔÉí£¬±£Ö¤ºÚ´°¿ÚÓÀ²»×Ô¶¯¹Ø±Õ =====
+rem ===== 0. ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½ï¿½Ó½ï¿½ï¿½ï¿½Ä£Ê½Ê±ï¿½ï¿½ cmd /k ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½Ú´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½Ø±ï¿½ =====
 if /i not "%~1"=="__child" (
     cmd /k ""%~f0" __child"
     goto :eof
@@ -7,14 +7,14 @@ if /i not "%~1"=="__child" (
 chcp 936 >nul
 setlocal
 cd /d %~dp0
-title ·Û½ðÃÎ¾³-ºó¶Ë·þÎñ(8081)
+title ï¿½Û½ï¿½ï¿½Î¾ï¿½-ï¿½ï¿½Ë·ï¿½ï¿½ï¿½(8081)
 
-rem ===== 0.1 ³õÊ¼»¯ÈÕÖ¾ÎÄ¼þ£¨¼´Ê¹´°¿Ú±»¹ØµôÒ²ÄÜÊÂºóÅÅ²é£©=====
+rem ===== 0.1 ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½Ú±ï¿½ï¿½Øµï¿½Ò²ï¿½ï¿½ï¿½Âºï¿½ï¿½Å²é£©=====
 set "LOGDIR=%~dp0logs"
 set "LOGFILE=%LOGDIR%\backend-launch.log"
 if not exist "%LOGDIR%" md "%LOGDIR%" 2>nul
 >>"%LOGFILE%" echo.
->>"%LOGFILE%" echo ===== [%date% %time%] Æô¶¯ºó¶Ë =====
+>>"%LOGFILE%" echo ===== [%date% %time%] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ =====
 
 echo ============================================
 echo   Pink-Gold Dream backend starter
@@ -22,7 +22,19 @@ echo   Project dir: %~dp0
 echo ============================================
 
 rem ===== 1. Check Java (prefer known Zulu JDK; a JRE-only JAVA_HOME breaks spring-boot:run) =====
-if exist "C:\Program Files\Zulu\zulu-21" set "JAVA_HOME=C:\Program Files\Zulu\zulu-21"
+set "JAVA_HOME="
+for %%d in (
+    "C:\Program Files\Zulu\zulu-21"
+    "C:\Program Files\Java"
+    "D:\IntelliJ IDEA 2024.3.2.2\jbr"
+    "C:\Program Files\JetBrains\IntelliJ IDEA\jbr"
+) do if not defined JAVA_HOME if exist "%%~d\bin\java.exe" set "JAVA_HOME=%%~d"
+if not defined JAVA_HOME (
+    for /f "delims=" %%j in ('dir /b /ad "D:\IntelliJ IDEA*" 2^>nul') do (
+        if exist "D:\%%j\jbr\bin\java.exe" set "JAVA_HOME=D:\%%j\jbr"
+    )
+)
+if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 java -version >nul 2>&1
 if errorlevel 1 (
     echo [ERR] Java not found. Install JDK 17+ or set JAVA_HOME.
@@ -44,7 +56,7 @@ if errorlevel 1 (
 netstat -ano | findstr ":3306" | findstr "LISTENING" >nul 2>&1
 if errorlevel 1 (
     echo [ERR] MySQL failed to start. Start MySQL service manually.
-    >>"%LOGFILE%" echo [ERR] MySQL 3306 Î´¼àÌý£¬·þÎñÆô¶¯Ê§°Ü
+    >>"%LOGFILE%" echo [ERR] MySQL 3306 Î´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½
     pause
     exit /b 1
 )
@@ -62,7 +74,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 < "%~dp0sql\dream_login.sql"
     if errorlevel 1 (
         echo [ERR] DB init failed. Check MySQL account/password.
-        >>"%LOGFILE%" echo [ERR] dream_login ³õÊ¼»¯Ê§°Ü£¨¼ì²é root ÃÜÂëÊÇ·ñÎª 123456£©
+        >>"%LOGFILE%" echo [ERR] dream_login ï¿½ï¿½Ê¼ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ root ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½Îª 123456ï¿½ï¿½
         pause
         exit /b 1
     )
@@ -77,7 +89,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 dream_login < "%~dp0sql\dream_home.sql"
     if errorlevel 1 (
         echo [ERR] t_dream init failed.
-        >>"%LOGFILE%" echo [ERR] dream_home.sql Ö´ÐÐÊ§°Ü
+        >>"%LOGFILE%" echo [ERR] dream_home.sql Ö´ï¿½ï¿½Ê§ï¿½ï¿½
         pause
         exit /b 1
     )
@@ -92,7 +104,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 dream_login < "%~dp0sql\dream_drama.sql"
     if errorlevel 1 (
         echo [ERR] t_drama init failed.
-        >>"%LOGFILE%" echo [ERR] dream_drama.sql Ö´ÐÐÊ§°Ü
+        >>"%LOGFILE%" echo [ERR] dream_drama.sql Ö´ï¿½ï¿½Ê§ï¿½ï¿½
         pause
         exit /b 1
     )
@@ -102,29 +114,29 @@ echo [4.5/5] table t_drama ready
 
 rem ===== 5. Locate Maven & Start Spring Boot =====
 set "MVN_BIN="
-rem 1) Ö±½Ó°´ÒÑÖª»º´æÂ·¾¶ÃüÖÐ£¨×î¿ì¡¢×î¿É¿¿£©
+rem 1) Ö±ï¿½Ó°ï¿½ï¿½ï¿½Öªï¿½ï¿½ï¿½ï¿½Â·ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½ï¿½ì¡¢ï¿½ï¿½É¿ï¿½ï¿½ï¿½
 for %%p in (
     "%USERPROFILE%\.m2\wrapper\dists\apache-maven-3.9.9-bin\4nf9hui3q3djbarqar9g711ggc\apache-maven-3.9.9\bin\mvn.cmd"
     "%USERPROFILE%\.m2\wrapper\dists\apache-maven-3.9.16-bin\5grr65jo27hi51sujmtcldfovl\apache-maven-3.9.16\bin\mvn.cmd"
 ) do if not defined MVN_BIN if exist "%%~p" set "MVN_BIN=%%~p"
-rem 2) µÝ¹éËÑË÷ ~/.m2/wrapper/dists ÏÂÈÎÒâ mvn.cmd
+rem 2) ï¿½Ý¹ï¿½ï¿½ï¿½ï¿½ï¿½ ~/.m2/wrapper/dists ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ mvn.cmd
 if not defined MVN_BIN (
     for /f "delims=" %%m in ('dir /b /s "%USERPROFILE%\.m2\wrapper\dists\mvn.cmd" 2^>nul') do (
         if not defined MVN_BIN set "MVN_BIN=%%m"
     )
 )
-rem 3) ÏîÄ¿×Ô´ø mvnw.cmd£¨.mvn ÒÑ»Ö¸´£©
+rem 3) ï¿½ï¿½Ä¿ï¿½Ô´ï¿½ mvnw.cmdï¿½ï¿½.mvn ï¿½Ñ»Ö¸ï¿½ï¿½ï¿½
 if not defined MVN_BIN (
     if exist "%~dp0.mvn\wrapper\maven-wrapper.properties" set "MVN_BIN=%~dp0mvnw.cmd"
 )
-rem 4) ÏµÍ³ PATH ÉÏµÄ mvn
+rem 4) ÏµÍ³ PATH ï¿½Ïµï¿½ mvn
 if not defined MVN_BIN (
     where mvn.cmd >nul 2>&1 && set "MVN_BIN=mvn.cmd"
 )
->>"%LOGFILE%" echo [5/5] Maven¶¨Î»½á¹û=%MVN_BIN%
+>>"%LOGFILE%" echo [5/5] Mavenï¿½ï¿½Î»ï¿½ï¿½ï¿½=%MVN_BIN%
 if not defined MVN_BIN (
     echo [ERR] Maven not found. Install Maven or restore the project mvnw wrapper.
-    >>"%LOGFILE%" echo [ERR] Maven ¶¨Î»Ê§°Ü£º»º´æ/mvnw/PATH ¾ùÎ´ÃüÖÐ
+    >>"%LOGFILE%" echo [ERR] Maven ï¿½ï¿½Î»Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½/mvnw/PATH ï¿½ï¿½Î´ï¿½ï¿½ï¿½ï¿½
     pause
     exit /b 1
 )
@@ -132,15 +144,15 @@ echo [5/5] Using Maven: %MVN_BIN%
 >>"%LOGFILE%" echo [5/5] Maven=%MVN_BIN%
 cd /d %~dp0
 
-rem ¼ì²é 8081 ÊÇ·ñ±»Õ¼ÓÃ£¬±ÜÃâ Spring Boot Æô¶¯µ½Ò»°ë²Å±¨¶Ë¿Ú³åÍ»
+rem ï¿½ï¿½ï¿½ 8081 ï¿½Ç·ï¿½Õ¼ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ Spring Boot ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Å±ï¿½ï¿½Ë¿Ú³ï¿½Í»
 netstat -ano | findstr ":8081" | findstr "LISTENING" >nul 2>&1
 if not errorlevel 1 (
     echo.
-    echo [WARN] ¶Ë¿Ú 8081 ÒÑ±»Õ¼ÓÃ£¬Õ¼ÓÃÇé¿öÈçÏÂ£º
+    echo [WARN] ï¿½Ë¿ï¿½ 8081 ï¿½Ñ±ï¿½Õ¼ï¿½Ã£ï¿½Õ¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â£ï¿½
     netstat -ano | findstr ":8081" | findstr "LISTENING"
     echo.
-    echo ÈôÕâÊÇÉÏÒ»´ÎÃ»¹ØµôµÄºó¶Ë£¬ÇëÏÈÔËÐÐ Í£Ö¹ºó¶Ë.bat ºóÔÙÆô¶¯¡£
-    >>"%LOGFILE%" echo [WARN] ¶Ë¿Ú 8081 ÒÑ±»Õ¼ÓÃ£¬Æô¶¯ÖÐÖ¹
+    echo ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ã»ï¿½Øµï¿½ï¿½Äºï¿½Ë£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Í£Ö¹ï¿½ï¿½ï¿½.bat ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    >>"%LOGFILE%" echo [WARN] ï¿½Ë¿ï¿½ 8081 ï¿½Ñ±ï¿½Õ¼ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¹
     pause
     exit /b 1
 )
@@ -148,13 +160,13 @@ if not errorlevel 1 (
 echo Starting backend http://localhost:8081 ...
 echo First start downloads dependencies, please wait.
 echo.
-rem ÓÃ cmd /c °ü¹üÆô¶¯£º±ÜÃâ mvn.cmd Ê§°ÜÊ±Ö±½ÓÍË³öÕû¸öÃüÁîÐÐ´°¿Ú£¨±íÏÖÎªÉÁÍË£¬¿´²»µ½±¨´í£©
+rem ï¿½ï¿½ cmd /c ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ mvn.cmd Ê§ï¿½ï¿½Ê±Ö±ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 cmd /c "%MVN_BIN% spring-boot:run -Dspring-boot.run.arguments=--server.port=8081"
 set MVN_RC=%ERRORLEVEL%
->>"%LOGFILE%" echo Spring Boot ÍË³öÂë=%MVN_RC%
+>>"%LOGFILE%" echo Spring Boot ï¿½Ë³ï¿½ï¿½ï¿½=%MVN_RC%
 echo.
-echo [ ºó¶Ë½ø³ÌÒÑÍË³ö£¬ÍË³öÂë = %MVN_RC% ]
+echo [ ï¿½ï¿½Ë½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½ï¿½ = %MVN_RC% ]
 if not "%MVN_RC%"=="0" (
-    echo [ÅÅ²é] ³£¼ûÔ­Òò£º¢Ù MySQL Î´Æô¶¯£¨½Å±¾ÒÑ³¢ÊÔ net start£¬Ê§°ÜÇëÊÖ¶¯Æô¶¯ MySQL80 ·þÎñ£©£»¢Ú ¶Ë¿Ú 8081 ±»Õ¼ÓÃ£»¢Û ÒÀÀµÏÂÔØÊ§°Ü£¨¼ì²é aliyun ¾µÏñÍøÂç£©¡£
+    echo [ï¿½Å²ï¿½] ï¿½ï¿½ï¿½ï¿½Ô­ï¿½ò£º¢ï¿½ MySQL Î´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å±ï¿½ï¿½Ñ³ï¿½ï¿½ï¿½ net startï¿½ï¿½Ê§ï¿½ï¿½ï¿½ï¿½ï¿½Ö¶ï¿½ï¿½ï¿½ï¿½ï¿½ MySQL80 ï¿½ï¿½ï¿½ñ£©£ï¿½ï¿½ï¿½ ï¿½Ë¿ï¿½ 8081 ï¿½ï¿½Õ¼ï¿½Ã£ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ aliyun ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ç£©ï¿½ï¿½
 )
 pause

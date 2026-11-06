@@ -513,10 +513,10 @@ async function loadCategories() {
   }
 }
 
-/* ---- 媒体地址归一化：把不可达的外链换成后端本地媒体 ---- */
+/* ---- 媒体地址归一化：统一指向前端本地媒体（单一来源，跨电脑可直接播放） ---- */
 /* 旧种子数据把 video_url 指向 Google 公开示例桶（commondatastorage.googleapis.com），
-   国内网络访问不到会导致黑屏「播放不了」。这里按文件名映射到本地 /media/drama 下的示例视频，
-   即使数据库还没迁移也能正常播放。 */
+   国内网络访问不到会导致黑屏「播放不了」。这里按文件名映射到本地 /drama-media/videos 下的视频，
+   所有媒体都由前端 public 直接托管，不依赖后端媒体目录，搬项目/换电脑也不会失效。 */
 const LEGACY_VIDEO_MAP = {
   'BigBuckBunny.mp4': 'bunny-trailer.mp4',
   'ElephantsDream.mp4': 'sintel-trailer.mp4',
@@ -531,8 +531,8 @@ const LEGACY_VIDEO_MAP = {
 function normalizeMedia(url) {
   if (!url) return ''
   const m = /\/([^/?#]+\.mp4)$/i.exec(String(url))
-  if (m && LEGACY_VIDEO_MAP[m[1]]) return '/media/drama/' + LEGACY_VIDEO_MAP[m[1]]
-  if (/commondatastorage\.googleapis\.com/i.test(String(url))) return '/media/drama/sintel-trailer.mp4'
+  if (m && LEGACY_VIDEO_MAP[m[1]]) return '/drama-media/videos/' + LEGACY_VIDEO_MAP[m[1]]
+  if (/commondatastorage\.googleapis\.com/i.test(String(url))) return '/drama-media/videos/sintel-trailer.mp4'
   return url
 }
 
@@ -544,8 +544,8 @@ async function openPlayer(card) {
   mediaState.value = 'loading'
   mediaErrorText.value = ''
   lineIndex.value = 0
-  // 有剧本就默认进「声画剧场」：示例视频跟小说无关，剧场才是内容本体
-  playMode.value = scriptOf(card.title).length ? 'theatre' : 'video'
+  // 默认进「视频画面」：九部剧均已替换为真实视频，直接呈现用户提供的影片
+  playMode.value = 'video'
   if (isLocalCard(card)) {
     player.value = { ...card, videoUrl: normalizeMedia(card.videoUrl), audioUrl: card.audioUrl || '' }
     return
@@ -654,9 +654,9 @@ watch(player, async (val) => {
 })
 
 /* ---- 演示模式数据源（后端未启动时，用本地广播剧库保证可浏览） ----
-   视频地址统一指向后端托管的 /media/drama（项目本地文件，不依赖外网），
-   与数据库 t_drama.video_url 保持一致。 */
-const DRAMA_MEDIA = '/media/drama/'
+   视频地址统一指向前端托管的 /drama-media/videos（public 本地文件，不依赖外网、不依赖后端媒体目录），
+   与数据库 t_drama.video_url 保持一致，换电脑/部署后仍能完整播放。 */
+const DRAMA_MEDIA = '/drama-media/videos/'
 const DRAMA_LIB = [
   { title: '雾港谜案', summary: '潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', category: '悬疑', tags: ['悬疑', '推理', '怀表'], platform: '喜马拉雅', duration: '全 8 集', videoUrl: DRAMA_MEDIA + 'fog-harbor.mp4', views: 821, likes: 142 },
   { title: '晚风寄来的情书', summary: '一封没有邮票的信，在三个人的抽屉里辗转了十年。', category: '言情', tags: ['言情', '信', '十年'], platform: '猫耳FM', duration: '全 6 集', videoUrl: DRAMA_MEDIA + 'love-letter.mp4', views: 654, likes: 98 },

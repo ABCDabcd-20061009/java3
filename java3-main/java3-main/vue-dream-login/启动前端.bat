@@ -2,29 +2,46 @@
 chcp 936 >nul
 setlocal
 cd /d %~dp0
-title ·Û½ðÃÎ¾³-Ç°¶ËÒ³Ãæ(5173)
+title ï¿½Û½ï¿½ï¿½Î¾ï¿½-Ç°ï¿½ï¿½Ò³ï¿½ï¿½(5173)
 
 echo ============================================
-echo   ·Û½ðÃÎ¾³ Ç°¶ËÆô¶¯½Å±¾
-echo   ÏîÄ¿Ä¿Â¼: %~dp0
+echo   ï¿½Û½ï¿½ï¿½Î¾ï¿½ Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å±ï¿½
+echo   ï¿½ï¿½Ä¿Ä¿Â¼: %~dp0
 echo ============================================
 
-rem ===== 1. ¼ì²é Node.js =====
+rem ===== 1. ï¿½ï¿½ï¿½ Node.js =====
 where npm >nul 2>&1
 if errorlevel 1 (
-    if exist "D:\Program Files\nodejs" set "PATH=D:\Program Files\nodejs;%PATH%"
+    set "NODE_FOUND="
+    for %%d in (
+        "D:\Program Files\nodejs"
+        "C:\Program Files\nodejs"
+        "%LOCALAPPDATA%\Programs\nodejs"
+        "C:\Users\HUAWEI\.workbuddy\binaries\node\versions\22.22.2-6"
+    ) do if not defined NODE_FOUND if exist "%%~d\npm.cmd" (
+        set "NODE_FOUND=%%~d"
+        set "PATH=%%~d;%PATH%"
+    )
+    if not defined NODE_FOUND (
+        for /f "delims=" %%n in ('dir /b /ad "C:\Users\HUAWEI\.workbuddy\binaries\node\versions\*" 2^>nul') do (
+            if exist "C:\Users\HUAWEI\.workbuddy\binaries\node\versions\%%n\npm.cmd" (
+                set "NODE_FOUND=C:\Users\HUAWEI\.workbuddy\binaries\node\versions\%%n"
+                set "PATH=C:\Users\HUAWEI\.workbuddy\binaries\node\versions\%%n;%PATH%"
+            )
+        )
+    )
 )
 where npm >nul 2>&1
 if errorlevel 1 (
-    echo [´íÎó] Î´ÕÒµ½ Node.js£¬ÇëÏÈ°²×° Node.js 18+
+    echo [ï¿½ï¿½ï¿½ï¿½] Î´ï¿½Òµï¿½ Node.jsï¿½ï¿½ï¿½ï¿½ï¿½È°ï¿½×° Node.js 18+
     pause
     exit /b 1
 )
-echo [1/2] Node.js ¼ì²éÍ¨¹ý
+echo [1/2] Node.js ï¿½ï¿½ï¿½Í¨ï¿½ï¿½
 
 rem ===== 2. install deps if vite missing (CN mirror, fallback to npmjs) =====
 if not exist "%~dp0node_modules\.bin\vite" (
-    echo [info] vite ÒÀÀµÈ±Ê§»ò²ÐÈ±, installing deps ...
+    echo [info] vite ï¿½ï¿½ï¿½ï¿½È±Ê§ï¿½ï¿½ï¿½È±, installing deps ...
     call npm install --registry=https://registry.npmmirror.com
     if errorlevel 1 (
         echo [warn] npmmirror failed, try registry.npmjs.org ...
@@ -41,9 +58,9 @@ if not exist "%~dp0node_modules\.bin\vite" (
         exit /b 1
     )
 )
-echo [2/2] ÒÀÀµ¾ÍÐ÷
+echo [2/2] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
 echo.
-echo Æô¶¯Ç°¶Ë http://localhost:5173 ...
+echo ï¿½ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ http://localhost:5173 ...
 call npm run dev
 pause

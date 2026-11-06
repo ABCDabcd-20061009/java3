@@ -33,7 +33,7 @@ public class SiteConfigServiceImpl implements SiteConfigService {
 
     /** 站点文案的固定键：删了首页会留白 */
     private static final Set<String> SITE_TEXT_KEYS = new HashSet<>(Arrays.asList(
-            "brand_name", "hero_title", "hero_sub", "footer"));
+            "brand_name", "hero_sub", "footer"));
 
     private final SiteConfigMapper mapper;
 

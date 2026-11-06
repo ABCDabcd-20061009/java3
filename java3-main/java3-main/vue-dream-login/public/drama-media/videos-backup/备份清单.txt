@@ -1,0 +1,40 @@
+============================================================
+广播剧 9 个视频 备份清单  生成于 2026-11-06 23:29
+============================================================
+
+文件名 = <slug>.mp4，与剧名一一对应（顺序即首页广播剧展示顺序）:
+  1. fog-harbor.mp4          雾港谜案
+  2. love-letter.mp4         晚风寄来的情书
+  3. star-track.mp4          星轨之外
+  4. cat-cafe.mp4            猫咪咖啡馆的午后
+  5. changan-moon.mp4        长安月明
+  6. glow-monster.mp4        会发光的小怪兽
+  7. seventh-bell.mp4        第七次钟声
+  8. time-letter.mp4         时间旅人的信
+  9. seaside-letter.mp4      海边的旧信封
+
+源文件（桌面）按顺序 → slug 映射:
+  9da6fc1620a0f71d84e236996a396dc9.mp4 -> fog-harbor
+  338835c03d9650d541a103eff53d2078.mp4 -> love-letter
+  3b6deec1e5e780cf6bdc997561ff7977.mp4 -> star-track
+  8d2a3806fe622c65e58615143c83d26e.mp4 -> cat-cafe
+  6d0b32969bed991fce80acfbfef2458d.mp4 -> changan-moon
+  12a21fda396878ef04847ba476ae2528.mp4 -> glow-monster
+  c9b1e375ed4efba46f80679f6dc5cedd.mp4 -> seventh-bell
+  145248234c4f554340becdf0993cc969.mp4 -> time-letter
+  adb5866483ab6ed50c5759137adc6be2.mp4 -> seaside-letter
+
+备份点位 (6 处，每处 9 个 mp4，共 54 份):
+  1. vue-dream-login\public\drama-media\videos\            (线上使用)
+  2. vue-dream-login\public\drama-media\videos-backup\v1\
+  3. vue-dream-login\public\drama-media\videos-backup\v2\
+  4. vue-dream-login\public\drama-media\videos-backup\v3\
+  5. C:\Users\HUAWEI\vue-dream-login-drama-video-backup\
+  6. D:\Users\HUAWEI\Desktop\drama-video-backup\
+
+恢复方法:
+  将任一备份点位的 <slug>.mp4 复制回
+  vue-dream-login\public\drama-media\videos\ 即可。
+
+说明: 前端「视频画面」模式通过 videoFor(title) 读取
+      public/drama-media/videos/<slug>.mp4。

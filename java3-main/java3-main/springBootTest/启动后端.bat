@@ -1,20 +1,19 @@
 @echo off
-rem ===== 0. �����ˣ����ӽ���ģʽʱ�� cmd /k ����������������֤�ڴ��������Զ��ر� =====
+rem ===== 0. Relaunch guard: when double-clicked, re-open under "cmd /k" so the window stays open =====
 if /i not "%~1"=="__child" (
     cmd /k ""%~f0" __child"
     goto :eof
 )
-chcp 936 >nul
 setlocal
 cd /d %~dp0
-title �۽��ξ�-��˷���(8081)
+title Pink-Gold Dream - backend (8081)
 
-rem ===== 0.1 ��ʼ����־�ļ�����ʹ���ڱ��ص�Ҳ���º��Ų飩=====
+rem ===== 0.1 Init log file (always local, easy troubleshooting) =====
 set "LOGDIR=%~dp0logs"
 set "LOGFILE=%LOGDIR%\backend-launch.log"
 if not exist "%LOGDIR%" md "%LOGDIR%" 2>nul
 >>"%LOGFILE%" echo.
->>"%LOGFILE%" echo ===== [%date% %time%] ������� =====
+>>"%LOGFILE%" echo ===== [%date% %time%] backend launch =====
 
 echo ============================================
 echo   Pink-Gold Dream backend starter
@@ -56,7 +55,7 @@ if errorlevel 1 (
 netstat -ano | findstr ":3306" | findstr "LISTENING" >nul 2>&1
 if errorlevel 1 (
     echo [ERR] MySQL failed to start. Start MySQL service manually.
-    >>"%LOGFILE%" echo [ERR] MySQL 3306 δ��������������ʧ��
+    >>"%LOGFILE%" echo [ERR] MySQL 3306 not listening, auto start failed
     pause
     exit /b 1
 )
@@ -74,7 +73,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 < "%~dp0sql\dream_login.sql"
     if errorlevel 1 (
         echo [ERR] DB init failed. Check MySQL account/password.
-        >>"%LOGFILE%" echo [ERR] dream_login ��ʼ��ʧ�ܣ���� root �����Ƿ�Ϊ 123456��
+        >>"%LOGFILE%" echo [ERR] dream_login init failed, check root password is 123456
         pause
         exit /b 1
     )
@@ -89,7 +88,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 dream_login < "%~dp0sql\dream_home.sql"
     if errorlevel 1 (
         echo [ERR] t_dream init failed.
-        >>"%LOGFILE%" echo [ERR] dream_home.sql ִ��ʧ��
+        >>"%LOGFILE%" echo [ERR] dream_home.sql execution failed
         pause
         exit /b 1
     )
@@ -104,7 +103,7 @@ if errorlevel 1 (
     "%MYSQL_EXE%" -uroot -p123456 --default-character-set=utf8mb4 dream_login < "%~dp0sql\dream_drama.sql"
     if errorlevel 1 (
         echo [ERR] t_drama init failed.
-        >>"%LOGFILE%" echo [ERR] dream_drama.sql ִ��ʧ��
+        >>"%LOGFILE%" echo [ERR] dream_drama.sql execution failed
         pause
         exit /b 1
     )
@@ -114,29 +113,29 @@ echo [4.5/5] table t_drama ready
 
 rem ===== 5. Locate Maven & Start Spring Boot =====
 set "MVN_BIN="
-rem 1) ֱ�Ӱ���֪����·�����У���졢��ɿ���
+rem 1) known wrapper cache paths first (fast, reliable)
 for %%p in (
     "%USERPROFILE%\.m2\wrapper\dists\apache-maven-3.9.9-bin\4nf9hui3q3djbarqar9g711ggc\apache-maven-3.9.9\bin\mvn.cmd"
     "%USERPROFILE%\.m2\wrapper\dists\apache-maven-3.9.16-bin\5grr65jo27hi51sujmtcldfovl\apache-maven-3.9.16\bin\mvn.cmd"
 ) do if not defined MVN_BIN if exist "%%~p" set "MVN_BIN=%%~p"
-rem 2) �ݹ����� ~/.m2/wrapper/dists ������ mvn.cmd
+rem 2) recursive search under ~/.m2/wrapper/dists for any mvn.cmd
 if not defined MVN_BIN (
     for /f "delims=" %%m in ('dir /b /s "%USERPROFILE%\.m2\wrapper\dists\mvn.cmd" 2^>nul') do (
         if not defined MVN_BIN set "MVN_BIN=%%m"
     )
 )
-rem 3) ��Ŀ�Դ� mvnw.cmd��.mvn �ѻָ���
+rem 3) fall back to project-bundled mvnw.cmd (requires .mvn dir)
 if not defined MVN_BIN (
     if exist "%~dp0.mvn\wrapper\maven-wrapper.properties" set "MVN_BIN=%~dp0mvnw.cmd"
 )
-rem 4) ϵͳ PATH �ϵ� mvn
+rem 4) mvn on system PATH
 if not defined MVN_BIN (
     where mvn.cmd >nul 2>&1 && set "MVN_BIN=mvn.cmd"
 )
->>"%LOGFILE%" echo [5/5] Maven��λ���=%MVN_BIN%
+>>"%LOGFILE%" echo [5/5] Maven resolved=%MVN_BIN%
 if not defined MVN_BIN (
     echo [ERR] Maven not found. Install Maven or restore the project mvnw wrapper.
-    >>"%LOGFILE%" echo [ERR] Maven ��λʧ�ܣ�����/mvnw/PATH ��δ����
+    >>"%LOGFILE%" echo [ERR] Maven not found in .m2/mvnw/PATH
     pause
     exit /b 1
 )
@@ -144,29 +143,29 @@ echo [5/5] Using Maven: %MVN_BIN%
 >>"%LOGFILE%" echo [5/5] Maven=%MVN_BIN%
 cd /d %~dp0
 
-rem ��� 8081 �Ƿ�ռ�ã����� Spring Boot ������һ��ű��˿ڳ�ͻ
+rem Check 8081 occupation to avoid port conflict with another Spring Boot instance
 netstat -ano | findstr ":8081" | findstr "LISTENING" >nul 2>&1
 if not errorlevel 1 (
     echo.
-    echo [WARN] �˿� 8081 �ѱ�ռ�ã�ռ��������£�
+    echo [WARN] Port 8081 is already in use:
     netstat -ano | findstr ":8081" | findstr "LISTENING"
     echo.
-    echo ��������һ��û�ص��ĺ�ˣ��������� ֹͣ���.bat ����������
-    >>"%LOGFILE%" echo [WARN] �˿� 8081 �ѱ�ռ�ã�������ֹ
+    echo Another backend is still running. Run the stop-backend script in the same folder first.
+    >>"%LOGFILE%" echo [WARN] Port 8081 occupied, launch aborted
     pause
     exit /b 1
 )
 
-echo Starting backend http://localhost:8081 ...
+echo Starting backend http://192.168.68.22:8081 ...
 echo First start downloads dependencies, please wait.
 echo.
-rem �� cmd /c �������������� mvn.cmd ʧ��ʱֱ���˳����������д��ڣ�����Ϊ���ˣ�������������
+rem Run via cmd /c so that if mvn.cmd fails the process exits cleanly instead of leaving a zombie window
 cmd /c "%MVN_BIN% spring-boot:run -Dspring-boot.run.arguments=--server.port=8081"
 set MVN_RC=%ERRORLEVEL%
->>"%LOGFILE%" echo Spring Boot �˳���=%MVN_RC%
+>>"%LOGFILE%" echo Spring Boot exit code=%MVN_RC%
 echo.
-echo [ ��˽������˳����˳��� = %MVN_RC% ]
+echo [ Backend stopped. Exit code = %MVN_RC% ]
 if not "%MVN_RC%"=="0" (
-    echo [�Ų�] ����ԭ�򣺢� MySQL δ�������ű��ѳ��� net start��ʧ�����ֶ����� MySQL80 ���񣩣��� �˿� 8081 ��ռ�ã��� ��������ʧ�ܣ���� aliyun �������磩��
+    echo [TIPS] Possible causes: 1 MySQL not running; 2 port 8081 occupied; 3 dependency download failed, check network.
 )
 pause

@@ -164,7 +164,7 @@
                    :src="videoSrc" :poster="player.posterUrl || player.coverUrl"
                    controls playsinline preload="metadata"
                    @error="videoBroken = true" @waiting="onMediaWaiting"
-                   @canplay="onMediaReady" @playing="onMediaReady"></video>
+                   @loadeddata="onVideoLoaded" @canplay="onMediaReady" @playing="onMediaReady"></video>
             <DramaMontage v-else-if="player && hasScript" :title="player.title" />
             <video v-else-if="player && player.videoUrl && !forceAudio" :key="'v2' + mediaKey" ref="videoEl" class="player-video"
                    :src="player.videoUrl" :poster="player.posterUrl || player.coverUrl"
@@ -594,6 +594,19 @@ function onMediaWaiting() {
 }
 function onMediaReady() {
   mediaState.value = ''
+}
+/* 有些剧集视频是 HEVC(H.265) 编码，浏览器没有对应解码器时不会触发 error 事件，
+   表现是「有进度条、有声音、画面全黑」。这里在拿到首帧后检查 videoWidth：
+   为 0 说明没有可用画面 → 直接回退到角色动画，避免用户对着黑屏以为坏了。 */
+function onVideoLoaded(e) {
+  const el = e && e.target
+  if (el && !el.videoWidth) {
+    videoBroken.value = true
+    mediaState.value = ''
+    flash('本剧视频编码当前浏览器不支持，已切换为角色动画 ✦')
+    return
+  }
+  onMediaReady()
 }
 function onMediaError(kind) {
   mediaState.value = 'error'

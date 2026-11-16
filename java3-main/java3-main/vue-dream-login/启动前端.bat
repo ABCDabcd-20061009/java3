@@ -1,4 +1,5 @@
 @echo off
+chcp 936 >nul
 setlocal
 cd /d %~dp0
 title Pink-Gold Dream - frontend (5173)
@@ -68,7 +69,40 @@ if not exist "%~dp0node_modules\.bin\vite" (
 )
 echo [2/2] dependencies ready
 
+rem ===== 3. 探测本机局域网 IP（取 ipconfig 里第一个 IPv4，跳过回环）=====
+set "LANIP="
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (
+    if not defined LANIP set "LANIP=%%a"
+)
+if defined LANIP set "LANIP=%LANIP: =%"
+if not defined LANIP set "LANIP=127.0.0.1"
+
 echo.
-echo Starting frontend http://192.168.68.22:5173 ...
+echo ============================================
+echo   本机访问  : http://localhost:5173/
+echo   局域网访问: http://%LANIP%:5173/
+echo               （同一 WiFi/交换机下的手机、其它电脑直接打开这个地址）
+echo   后端接口  : http://%LANIP%:8081/api  （请先双击 启动后端.bat）
+echo ============================================
+echo.
+
+rem ===== 4. 5173 已经在跑（之前开过没关）就别重复启动，直接开浏览器 =====
+netstat -ano | findstr /c:":5173" | findstr /c:"LISTENING" >nul 2>&1
+if not errorlevel 1 (
+    echo [info] 前端已经在运行，直接打开浏览器 http://%LANIP%:5173/
+    echo        如果需要重启，先双击 停止前端.bat
+    start "" http://%LANIP%:5173/
+    ping -n 3 127.0.0.1 >nul
+    exit /b 0
+)
+
+echo 正在启动 Vite，约 6 秒后自动用默认浏览器打开 http://%LANIP%:5173/
+echo 若浏览器没弹出，手动复制上面的「局域网访问」地址打开即可。
+echo.
+
+rem 延迟 6 秒（ping 6 次 ≈ 6 秒，比 timeout 更稳：不受输入重定向影响）再打开浏览器，
+rem 等 Vite 真正就绪，避免刚启动就打开显示"无法访问"
+start "" /b cmd /c "ping -n 7 127.0.0.1 >nul & start http://%LANIP%:5173/"
+
 call npm run dev
 pause

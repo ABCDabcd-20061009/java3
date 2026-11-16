@@ -13,9 +13,10 @@
 ## 二、快速启动（每次开机后）
 
 1. 双击 `springBootTest\启动后端.bat`（自动检查 Java/MySQL；库不存在执行 `sql\dream_login.sql`，首页 4 张表缺失执行 `sql\dream_home.sql`——都幂等；然后启动服务）
-2. 双击 `vue-dream-login\启动前端.bat`（`node_modules` 不存在则自动用 npmmirror 安装）
+2. 双击 `vue-dream-login\启动前端.bat`（`node_modules` 不存在则自动用 npmmirror 安装；启动后自动探测本机局域网 IP，**6 秒后自动用默认浏览器打开 `http://本机IP:5173/`**，控制台同时打印本机/局域网地址）
 3. 停止：对应目录下的 `停止后端.bat` / `停止前端.bat`（按端口杀进程）
 4. 脚本均为 GBK 编码 + CRLF，相对路径（`%~dp0`），不依赖 `node_modules`/`target` 预先存在
+5. 手机/其它电脑访问：直接用 `http://本机IP:5173/`（`vite.config.js` 已 `host: true` + `allowedHosts: true`，Windows 防火墙三档均为关闭状态，无需额外放行）
 
 手工命令（脚本失效时的备选）：
 - 后端：`mvnw.cmd spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"`
@@ -75,7 +76,17 @@
 - `src/components/DreamBackground.vue` — 全站背景动画层：粉金光晕漂移 + 满天星星闪烁（小星点 + 四角星光，随机节奏 twinkle）+ 气泡缓慢上升流动；App.vue 背景为粉金色渐变（日间 #ffdcea→#fff1dd，夜空深紫底 + 粉金光晕）
   - ⚠️ 坑：星星/气泡是 JS `document.createElement` 动态创建的，**没有** scoped 的 `data-v` 属性，样式选择器必须写成 `.stars :deep(.star)`、`.bubbles :deep(.bubble)`（编译成 `.stars[data-v] .star` 后代选择器）。直接写 `.star {}` 会被编译成 `.star[data-v]` 导致样式完全不生效、元素不可见——旧版花瓣/气泡长期不可见就是这个原因
 - `src/components/HomePage.vue` — 登录后的首页，已全部接通后端：
-  - 顶部：悬浮胶囊导航栏（品牌、菜单占位、头像/用户名、退出登录）
+  - **「娱乐」页（2026-11-16 改版，参考快手结构）**：原「我的梦境 / 个人中心」改名「娱乐」，并整体改成快手式短视频内容流
+    - 顶部胶囊页签：**关注 / 精选 / 热门**（`entTab`）；精选=梦境与广播剧交替混排，热门=`sort:hot`（按浏览量）
+    - 双列（桌面三列）**瀑布流卡片**：剧卡片竖版封面（`coverImg(title)` 取 `covers/*.webp`）+ 时长/集数角标；梦境卡片按 `categoryCode` 渐变色块 + 首字水印；卡片底部有作者 + 「＋关注」 + 点赞数
+    - 点剧卡片 → **沉浸式播放器**（视频 + 右侧互动栏「头像/关注/点赞/分享」+ 底部作者、标题、话题、平台与播放量）；点梦境卡片 → 原详情弹层
+    - **「关注」是纯前端实现**：关注记录（作者名数组）存 `localStorage` 的 `dream-follows`，`关注` 页按此过滤两路数据；广播剧作者统一记为「粉金梦境官方」。后端无关注表，**换成新浏览器/清缓存后关注会丢**
+    - 原个人中心（统计、写一场梦、我的作品编辑/删除）收进右上角头像打开的**「我」抽屉**（`.me-drawer`），不再占用页面顶部
+    - 娱乐视图会隐藏搜索区/统计条/快捷入口，保证「内容优先」（快手式首屏）
+    - 数据来源：`fetchDramaList`（剧）+ `fetchHomeFeed`（梦），两路各自分页后 `interleave()` 交替合并；翻页时只推进还没到底的那一路
+    - ⚠️ 广播剧**没有点赞接口**，播放器/卡片里的剧点赞只在本地切换数字（刷新即还原）；梦境点赞走 `/api/dream/like` 真实落库
+  - **移动端底部 Tab 栏（2026-11-16 新增）**：≤760px 时悬浮导航的 `.nav-menu` 是隐藏的，手机上没有入口 → 新增 `.mobile-tabbar`（首页 / 娱乐 / 广播剧 / 收藏 / 我），固定底部、`--panel-bg` 半透明 + 模糊；`.content` 同步加 `padding-bottom: 84px` 防遮挡；播放器在手机上把互动栏叠进视频右侧（避免出屏）
+  - 顶部：悬浮胶囊导航栏（品牌、菜单、头像/用户名、退出登录；头像点击打开「我」抽屉）
   - 搜索区：大搜索框 + 热门关键词（来自 `/api/home/hot-keywords`，带热度数字），走 `searchDreams` → `POST /api/search`
   - 统计条：梦境内容 / 累计浏览 / 收获点赞 / 造梦者（`/api/home/overview` 的 `stats`）
   - 梦境精选：分类 tab（带各分类数量）+ 「最新/最热」排序切换 + 卡片网格 + 「加载更多」分页（`/api/home/feed`）
@@ -95,8 +106,11 @@
   - **媒体地址**：`videoUrl` 一律是后端托管的本地路径 `/media/drama/*.mp4`，**仅是画面占位素材，与小说内容无关**（示例动画/测试片段）。带计时器的 `movie-300.mp4` 已下线删除（早期用过 `commondatastorage.googleapis.com` 公开示例桶，国内不可达会导致黑屏「播放不了」，已废弃）。`normalizeMedia()` 会兜底把遗留 Google 地址按文件名映射成本地文件，数据库没迁移也能播
   - **播放容错**（2026-10-26 补）：媒体区叠 loading / error 状态浮层 —— 加载中转圈，失败时提示原因并给「重新加载」「改用音频播放」两个按钮（不再出现点了没反应）；自动播放被浏览器拦截时退化为静音播放并提示可手动恢复；关闭弹层会 `pause()` 并移除 `src`，避免声音在后台继续播
   - 后端不可用时自动降级演示模式（本地 `DRAMA_LIB` 9 部，卡片 id 取负；媒体同样指向 `/media/drama/*`，后端没起时会显示「媒体加载失败」而不是静默黑屏）
+  - **视频编码坑（2026-11-16 修）**：`public/drama-media/videos/` 里曾有 4 部是 **HEVC/H.265（hvc1）**（cat-cafe / changan-moon / seaside-letter / seventh-bell），Chrome/Edge 在没有 HEVC 解码器的机器上**不报错、只有声音和进度条、画面全黑**（`video.videoWidth === 0`）。已用 ffmpeg 统一转成 H.264（`-c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart`），原件备份在 `public/drama-media/videos-backup/v4-hevc原件/`，`project-assets/drama-videos/` 与 `springBootTest/media/drama/` 三处已同步。以后再换视频，**务必确认编码是 avc1/H.264**（HEVC 会黑屏）
+  - 播放器新增 `onVideoLoaded()`：`loadeddata` 时若 `videoWidth === 0`，判定为"浏览器解不了这个编码"，自动 `videoBroken = true` 回退角色动画并 toast 提示，避免用户对着黑屏以为坏了
 - `src/App.vue` — 会话管理：记住我 → localStorage，否则 → sessionStorage（键 `dream-user`），刷新自动恢复，退出清除；同时定义全站主题变量（`:root` 日间 / `.app-root.dark` 夜空），新增 `--panel-bg` 给弹层做不透明底色（scoped 样式里写 `:global(.app-root.dark) xxx` **无效**，会被编译器丢掉，主题差异一律走变量）
-- `vite.config.js` — `/api` 代理到 `http://localhost:8081`；`/media` 同样代理过去（广播剧视频/音频由后端托管，避免依赖外网）。⚠️ 若把媒体放进 `public/` 会与代理冲突 —— proxy 中间件先于静态文件生效
+- `vite.config.js` — `/api` 代理到 `http://127.0.0.1:8081`；`/media` 同样代理过去（广播剧视频/音频由后端托管，避免依赖外网）。**代理目标必须写 `127.0.0.1`，不要写死局域网 IP**（2026-11-16 改）：早前写的是 `http://192.168.68.22:8081`，一旦换网络/IP 变化，接口全部 502，页面看起来就是"前端出错"。同时 `server` 加了 `strictPort: true`（端口被占直接报错，不偷偷换 5174）和 `allowedHosts: true`（Vite 6 默认校验 Host，用 IP/域名访问可能被拦 403）。⚠️ 若把媒体放进 `public/` 会与代理冲突 —— proxy 中间件先于静态文件生效
+- `index.html` + `public/favicon.svg` — 2026-11-16 补了站点图标，消掉控制台 `favicon.ico 404`
 
 ## 六、本机环境坑（都踩过，别再排查）
 
@@ -109,6 +123,8 @@
 7. **别用 git bash 跑后端 `./mvnw`**：Windows 下会报 `ClassNotFoundException: org.codehaus.plexus.classworlds.launcher.Launcher`。用 `mvnw.cmd`，或直接调缓存 Maven `C:\Users\Administrator\.m2\wrapper\dists\apache-maven-3.9.9-bin\4nf9hui3q3djbarqar9g711ggc\apache-maven-3.9.9\bin\mvn.cmd -o -DskipTests package`
 8. `sc.exe` / `cmd.exe` 在本机沙箱里被禁用：查端口用 `netstat -ano | findstr :8081`，杀进程用 PowerShell `Stop-Process -Id <pid> -Force`
 9. 前端构建校验：`node node_modules/vite/bin/vite.js build`（不需要 npm run）
+10. **本机装了真 Chrome**：`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`（145）。想复现/验证页面（登录→首页→广播剧→播放器）不必靠肉眼看，用 `puppeteer-core` 指向这个 exe 跑无头 Chrome，`page.on('pageerror'/'console'/'requestfailed')` 就能抓到真实报错；注意无头 Chromium（chrome-headless-shell）**没有 H.264 解码**，视频会黑屏，验证视频必须用真 Chrome
+11. **bat 里的 `timeout /t N` 不可靠**（stdin 被重定向时会报「不支持输入重新定向」直接退出），脚本里做延时统一用 `ping -n N+1 127.0.0.1 >nul`
 
 ## 七、已知缺口（用户可能让你继续做的）
 

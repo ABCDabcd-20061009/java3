@@ -27,7 +27,7 @@ INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, stat
 SELECT 'nav_menu','favorites','我的收藏','favorites',2,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='nav_menu' AND config_key='favorites');
 INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, status, create_time)
-SELECT 'nav_menu','profile','我的梦境','profile',3,1,NOW() FROM DUAL
+SELECT 'nav_menu','profile','娱乐','profile',3,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='nav_menu' AND config_key='profile');
 INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, status, create_time)
 SELECT 'nav_menu','drama','广播剧','drama',4,1,NOW() FROM DUAL

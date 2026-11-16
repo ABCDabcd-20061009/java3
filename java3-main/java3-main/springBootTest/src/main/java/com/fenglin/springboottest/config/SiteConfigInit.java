@@ -76,7 +76,7 @@ public class SiteConfigInit implements ApplicationRunner {
                 // ---- 导航菜单 nav_menu（5 条）----
                 nav("square", "动漫人物", "square", 1),
                 nav("favorites", "我的收藏", "favorites", 2),
-                nav("profile", "我的梦境", "profile", 3),
+                nav("profile", "娱乐", "profile", 3),
                 nav("drama", "广播剧", "drama", 4),
                 nav("help", "帮助中心", "help", 5),
                 // ---- 快捷入口 shortcut（5 条）----

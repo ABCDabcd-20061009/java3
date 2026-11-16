@@ -9,7 +9,7 @@ export const DEFAULT_CONFIG = {
   navMenu: [
     { key: 'square', label: '动漫人物', target: 'square' },
     { key: 'favorites', label: '我的收藏', target: 'favorites' },
-    { key: 'profile', label: '我的梦境', target: 'profile' },
+    { key: 'profile', label: '娱乐', target: 'profile' },
     { key: 'drama', label: '广播剧', target: 'drama' },
     { key: 'help', label: '帮助中心', target: 'help' }
   ],

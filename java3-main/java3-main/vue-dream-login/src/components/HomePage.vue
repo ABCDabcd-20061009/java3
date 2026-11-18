@@ -461,7 +461,7 @@
     </div>
 
     <!-- ===== 沉浸式竖滑播放流（快手式：滚轮/上下滑动切换，当前条自动播放） ===== -->
-    <div class="ks-full" v-if="feedOpen">
+    <div class="ks-full" v-if="feedOpen" ref="feedFull">
       <div class="ks-full-body" ref="feedWrap" @scroll="onFeedScroll">
         <section class="ks-slide" v-for="(item, i) in entList" :key="item.uid">
           <div class="ks-slide-bg" v-if="item.cover"
@@ -517,6 +517,15 @@
         <div class="ks-full-end">已经到底啦，回瀑布流再挑一条吧 ✦</div>
       </div>
 
+      <button class="ks-full-back" type="button" @click="backToEntertainment" aria-label="返回娱乐页">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>返回娱乐</span>
+      </button>
+      <button class="ks-full-fscreen" type="button" @click="toggleFeedFullscreen"
+              :aria-label="isFeedFullscreen ? '退出全屏' : '全屏观看'">
+        <svg v-if="!isFeedFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>
+      </button>
       <button class="ks-full-close" type="button" @click="closeFeed" aria-label="关闭">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
@@ -571,7 +580,7 @@ import {
 } from '../api'
 import { loadHomeConfig, iconSvg, DEFAULT_CONFIG } from '../homeConfig'
 import { animeChars } from '../data/animeChars'
-import { coverImg } from '../data/dramaMedia'
+import { coverImg, videoFor, DRAMA_TITLES } from '../data/dramaMedia'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -677,6 +686,8 @@ const entDreamHasMore = ref(true)
 const feedOpen = ref(false)
 const feedStart = ref(0)
 const feedWrap = ref(null)
+const feedFull = ref(null)          // 沉浸层根节点，用于浏览器全屏
+const isFeedFullscreen = ref(false) // 当前是否处于浏览器全屏
 const follows = ref((() => {
   try { return JSON.parse(localStorage.getItem(FOLLOW_KEY)) || [] } catch (_) { return [] }
 })())
@@ -735,9 +746,9 @@ function isSelfItem(item) {
 function openEntertainment() {
   view.value = 'profile'
   if (isDemo.value) {
-    // 演示模式：用本地梦境库铺满瀑布流，广播剧缺失时不显示播放入口
+    // 演示模式：同样只展示九部带封面的本地广播剧，不铺无封面的梦境卡片
     if (!entList.value.length) {
-      entList.value = localCards().map((d, i) => ({ ...mapDream(d), uid: 'demo-' + i }))
+      entList.value = localDramaCards()
       entHasMore.value = false
       entLoadedOnce.value = true
     }
@@ -769,41 +780,16 @@ async function loadEnt(append = false) {
   if (entLoading.value) return
   entLoading.value = true
   try {
-    if (!append) {
-      entDramaPage.value = 1
-      entDreamPage.value = 1
-      entList.value = []
-    }
+    // 娱乐页只展示九部带封面视频的广播剧，不再混排无封面的梦境卡片。
+    // 一次取全（size=50），因此无需翻页；三个页签通过排序区分。
     const sort = entTab.value === 'hot' ? 'hot' : 'newest'
-    if (entTab.value === 'follow') {
-      // 关注页：拉取内容后按已关注作者过滤（作者关注记录存在本地）
-      const wanted = new Set(follows.value)
-      const [dRes, mRes] = await Promise.all([
-        fetchDramaList({ page: entDramaPage.value, size: FEED_SIZE, sort }),
-        fetchHomeFeed({ page: entDreamPage.value, size: FEED_SIZE, sort, userId: undefined })
-      ])
-      const dData = (dRes && dRes.data) || {}
-      const mData = (mRes && mRes.data) || {}
-      const dramas = (dData.list || []).map(mapDrama).filter(d => wanted.has(d.authorName))
-      const dreams = (mData.list || []).map(mapDream).filter(d => wanted.has(d.authorName))
-      entDramaHasMore.value = !!dData.hasMore
-      entDreamHasMore.value = !!mData.hasMore
-      entList.value = append ? entList.value.concat(interleave(dramas, dreams)) : interleave(dramas, dreams)
-      entHasMore.value = entDramaHasMore.value || entDreamHasMore.value
-    } else {
-      const [dRes, mRes] = await Promise.all([
-        fetchDramaList({ page: entDramaPage.value, size: 4, sort }),
-        fetchHomeFeed({ page: entDreamPage.value, size: 4, sort, userId: undefined })
-      ])
-      const dData = (dRes && dRes.data) || {}
-      const mData = (mRes && mRes.data) || {}
-      entDramaHasMore.value = !!dData.hasMore
-      entDreamHasMore.value = !!mData.hasMore
-      const merged = interleave((dData.list || []).map(mapDrama), (mData.list || []).map(mapDream))
-      entList.value = append ? entList.value.concat(merged) : merged
-      entHasMore.value = entDramaHasMore.value || entDreamHasMore.value
-      isDemo.value = false
-    }
+    const res = await fetchDramaList({ page: 1, size: 50, sort })
+    const data = (res && res.data) || {}
+    entList.value = (data.list || []).map(mapDrama)
+    entHasMore.value = false
+    entDramaHasMore.value = false
+    entDreamHasMore.value = false
+    isDemo.value = false
     entLoadedOnce.value = true
   } catch (e) {
     if (e && e.isNetwork) {
@@ -865,9 +851,40 @@ function openImmersive() {
 }
 
 function closeFeed() {
+  // 若处于浏览器全屏，先退出，避免关闭后仍停留全屏态
+  if (document.fullscreenElement) {
+    document.exitFullscreen && document.exitFullscreen().catch(() => {})
+  }
   feedOpen.value = false
   const wrap = feedWrap.value
   if (wrap) wrap.querySelectorAll('video').forEach(v => v.pause())
+}
+
+/** 沉浸刷剧：切换浏览器全屏（隐藏地址栏，真正占满屏幕） */
+async function toggleFeedFullscreen() {
+  const el = feedFull.value
+  if (!el) return
+  try {
+    if (!document.fullscreenElement) {
+      if (el.requestFullscreen) await el.requestFullscreen()
+      else flash('当前浏览器不支持全屏')
+    } else {
+      if (document.exitFullscreen) await document.exitFullscreen()
+    }
+  } catch (_) {
+    flash('全屏切换失败，请检查浏览器设置')
+  }
+}
+
+/** 同步浏览器全屏状态到 UI（点击按钮、按 Esc 退出全屏都会触发） */
+function onFullscreenChange() {
+  isFeedFullscreen.value = !!document.fullscreenElement
+}
+
+/** 沉浸刷剧：返回娱乐页（关闭全屏并确保停留在娱乐视图） */
+function backToEntertainment() {
+  view.value = 'profile'
+  closeFeed()
 }
 
 /* ---- 竖滑流核心：scroll-snap 负责滚轮/触摸吸附，这里管定位、键盘、自动播放 ---- */
@@ -947,6 +964,7 @@ watch(feedOpen, open => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', onFeedKey)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
   clearTimeout(feedScrollTimer)
 })
 
@@ -1061,6 +1079,47 @@ const DREAM_LIB = [
   { title: '深海星光浴', tag: '奇幻', desc: '潜入夜晚的海，水母提着灯，鱼群衔来碎银般的月光。' },
   { title: '四季茶馆', tag: '静谧', desc: '春天上花茶，冬天煮姜茶，掌柜的会听你讲完整个梦。' }
 ]
+
+// 演示模式（后端未启动）下娱乐页只展示这九部带封面视频的广播剧
+const LOCAL_DRAMA_META = {
+  '雾港谜案': ['潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', '悬疑'],
+  '晚风寄来的情书': ['一封没有邮票的信，在三个人的抽屉里辗转了十年。', '治愈'],
+  '星轨之外': ['最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', '科幻'],
+  '猫咪咖啡馆的午后': ['一只不爱说话的猫，治愈了所有推门进来的人。', '治愈'],
+  '长安月明': ['上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', '古风'],
+  '会发光的小怪兽': ['夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', '童话'],
+  '第七次钟声': ['钟楼每响一次，就有一个人忘记今天发生过的事。', '悬疑'],
+  '时间旅人的信': ['寄给十年前的自己，却先被十年后的人收下了。', '科幻'],
+  '海边的旧信封': ['退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', '治愈'],
+  '古人闯现代': ['没人说他们也能来到现代呀——古人一觉醒来，闯进了灯红酒绿的都市。', '言情'],
+  '和平精英巅峰赛': ['PEL 赛场聚光灯亮起，选手登场，巅峰对决一触即发。', '科幻']
+}
+
+function localDramaCards() {
+  // id 取负数标记「非后端数据」；封面与视频均指向本地 public 素材，保证每张卡片有封面
+  return DRAMA_TITLES.map((title, i) => {
+    const [summary, category] = LOCAL_DRAMA_META[title] || ['', '广播剧']
+    return {
+      kind: 'drama',
+      uid: 'demo-drama-' + i,
+      id: -(i + 1),
+      title,
+      summary,
+      cover: coverImg(title),
+      category,
+      categoryCode: 'drama',
+      duration: '',
+      views: 0,
+      likes: 0,
+      liked: false,
+      authorName: DRAMA_AUTHOR,
+      avatarText: '粉',
+      platform: '',
+      videoUrl: videoFor(title),
+      tags: [category]
+    }
+  })
+}
 
 function localCards() {
   // id 取负数：既有唯一 key，又能标记「非后端数据」，点赞/详情走本地逻辑
@@ -1624,6 +1683,7 @@ onMounted(() => {
   loadSiteConfig()
   loadOverview()
   loadFeed(false)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 </script>
 
@@ -2367,6 +2427,28 @@ onMounted(() => {
 .ks-full-close:hover { background: rgba(255, 255, 255, .3); transform: rotate(90deg); }
 .ks-full-close svg { width: 18px; height: 18px; }
 
+.ks-full-fscreen {
+  position: absolute; top: 18px; right: 64px; z-index: 4;
+  width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: rgba(255, 255, 255, .16); border: 0;
+  backdrop-filter: blur(6px);
+  transition: background .2s;
+}
+.ks-full-fscreen:hover { background: rgba(255, 255, 255, .3); }
+.ks-full-fscreen svg { width: 18px; height: 18px; }
+
+.ks-full-back {
+  position: absolute; top: 18px; left: 18px; z-index: 4;
+  display: flex; align-items: center; gap: 5px;
+  height: 38px; padding: 0 14px 0 10px; border-radius: 30px; cursor: pointer;
+  color: #fff; font-size: 13px; letter-spacing: .03em;
+  background: rgba(255, 255, 255, .16); border: 0; backdrop-filter: blur(6px);
+  transition: background .2s;
+}
+.ks-full-back:hover { background: rgba(255, 255, 255, .3); }
+.ks-full-back svg { width: 18px; height: 18px; }
+
 .ks-swipe-hint {
   position: absolute; left: 50%; top: 20px; z-index: 3;
   transform: translateX(-50%);
@@ -2439,6 +2521,9 @@ onMounted(() => {
   .ks-slide-info { left: 16px; right: 66px; bottom: 84px; }
   .ks-player-summary { -webkit-line-clamp: 2; }
   .ks-full-close { top: 12px; right: 12px; }
+  .ks-full-fscreen { top: 12px; right: 58px; width: 34px; height: 34px; }
+  .ks-full-fscreen svg { width: 16px; height: 16px; }
+  .ks-full-back { top: 12px; left: 12px; height: 34px; padding: 0 12px 0 8px; font-size: 12px; }
   .me-drawer { width: 100%; }
 }
 

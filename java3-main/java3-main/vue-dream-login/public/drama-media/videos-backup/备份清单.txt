@@ -1,5 +1,5 @@
 ============================================================
-广播剧 9 个视频 备份清单  生成于 2026-11-06 23:29
+广播剧 11 个视频 备份清单  更新于 2026-11-18 09:20
 ============================================================
 
 文件名 = <slug>.mp4，与剧名一一对应（顺序即首页广播剧展示顺序）:
@@ -12,6 +12,8 @@
   7. seventh-bell.mp4        第七次钟声
   8. time-letter.mp4         时间旅人的信
   9. seaside-letter.mp4      海边的旧信封
+ 10. ancient-modern.mp4      古人闯现代          [2026-11-18 新增]
+ 11. peace-elite.mp4         和平精英巅峰赛       [2026-11-18 新增]
 
 源文件（桌面）按顺序 → slug 映射:
   9da6fc1620a0f71d84e236996a396dc9.mp4 -> fog-harbor
@@ -23,14 +25,24 @@
   c9b1e375ed4efba46f80679f6dc5cedd.mp4 -> seventh-bell
   145248234c4f554340becdf0993cc969.mp4 -> time-letter
   adb5866483ab6ed50c5759137adc6be2.mp4 -> seaside-letter
+  c4f36b0ad3aeeda0b43ff2b889993380.mp4 -> ancient-modern  (古人闯现代, 162s)
+  c04304668c1c5d496f576f7ef0476ec2.mp4 -> peace-elite     (和平精英巅峰赛, 61s)
 
-备份点位 (6 处，每处 9 个 mp4，共 54 份):
+备份点位:
   1. vue-dream-login\public\drama-media\videos\            (线上使用)
-  2. vue-dream-login\public\drama-media\videos-backup\v1\
-  3. vue-dream-login\public\drama-media\videos-backup\v2\
-  4. vue-dream-login\public\drama-media\videos-backup\v3\
-  5. C:\Users\HUAWEI\vue-dream-login-drama-video-backup\
-  6. D:\Users\HUAWEI\Desktop\drama-video-backup\
+  2. vue-dream-login\public\drama-media\videos\backups\
+  3. vue-dream-login\public\drama-media\videos-backup\v1\
+  4. vue-dream-login\public\drama-media\videos-backup\v2\
+  5. vue-dream-login\public\drama-media\videos-backup\v3\
+  6. D:\workSpace\drama-video-backup\                       (当前机器独立异地备份, 11 个视频全在一处, 2026-11-18 新增)
+  7. java3-main\project-assets\drama-videos\                 (项目素材库, 11 个视频全在一处, 2026-11-18 新增)
+  8. springBootTest\media\drama\                            (后端播放源)
+  旧清单中的 C:\Users\HUAWEI\... 与 D:\Users\HUAWEI\... 两台机器在本机不存在，
+  如需异地备份请自行将 D:\workSpace\drama-video-backup\ 整个目录拷贝到移动硬盘/网盘。
+
+新增两个视频 SHA256（前16位，用于校验备份完整性）:
+  ancient-modern.mp4  44304703bc7814be   11,969,470 B  (7 处点位全部一致)
+  peace-elite.mp4     64a7c9e725464410    6,914,429 B  (7 处点位全部一致)
 
 恢复方法:
   将任一备份点位的 <slug>.mp4 复制回
@@ -38,3 +50,4 @@
 
 说明: 前端「视频画面」模式通过 videoFor(title) 读取
       public/drama-media/videos/<slug>.mp4。
+      后端播放地址 /media/drama/<slug>.mp4 由 t_drama.video_url 提供。

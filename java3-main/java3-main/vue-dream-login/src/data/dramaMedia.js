@@ -19,8 +19,13 @@ const SLUG = {
   '会发光的小怪兽': 'glow-monster',
   '第七次钟声': 'seventh-bell',
   '时间旅人的信': 'time-letter',
-  '海边的旧信封': 'seaside-letter'
+  '海边的旧信封': 'seaside-letter',
+  '古人闯现代': 'ancient-modern',
+  '和平精英巅峰赛': 'peace-elite'
 }
+
+// 九部广播剧标题（顺序即娱乐页默认展示顺序），供演示模式构造本地卡片
+export const DRAMA_TITLES = Object.keys(SLUG)
 
 export function slugOf(title) {
   return SLUG[String(title || '').trim()] || 'drama'
@@ -40,7 +45,9 @@ const COVERS = {
   '会发光的小怪兽': 'glow-monster.webp',
   '第七次钟声': 'seventh-bell.webp',
   '时间旅人的信': 'time-letter.webp',
-  '海边的旧信封': 'seaside-letter.webp'
+  '海边的旧信封': 'seaside-letter.webp',
+  '古人闯现代': 'ancient-modern.webp',
+  '和平精英巅峰赛': 'peace-elite.webp'
 }
 
 export function coverImg(title) {
@@ -66,7 +73,9 @@ export const DRAMA_IMG = {
   '会发光的小怪兽':   { '豆豆': 'glow-monster_doudou.png', '噜噜': 'glow-monster_lulu.png' },
   '第七次钟声':     { '老周': 'seventh-bell_laozhou.png', '记者': 'seventh-bell_jizhe.png' },
   '时间旅人的信':   { '收信人': 'time-letter_shouxinren.png', '旅人': 'time-letter_lvren.png' },
-  '海边的旧信封':   { '老人': 'seaside-letter_laoren.png', '孙女': 'seaside-letter_sunnv.png' }
+  '海边的旧信封':   { '老人': 'seaside-letter_laoren.png', '孙女': 'seaside-letter_sunnv.png' },
+  '古人闯现代':     {},
+  '和平精英巅峰赛': {}
 }
 
 export function charImg(title, name) {

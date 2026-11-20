@@ -104,7 +104,7 @@
         </div>
       </section>
 
-      <!-- 首页展示区：梦境精选 / 我的收藏 / 娱乐（快手式内容流） -->
+      <!-- 首页展示区：梦境精选 / 励志 / 娱乐（快手式内容流） -->
       <section class="section" v-if="view !== 'profile'">
         <div class="section-head">
           <span class="dot"></span>
@@ -119,6 +119,41 @@
           </button>
         </div>
 
+        <!-- ===== 励志问卷：20 道题，选哪一句都算正确 ===== -->
+        <div class="quiz-wrap" v-if="view === 'favorites'">
+          <div class="quiz-banner">
+            <span class="quiz-banner-tip">每一句都是答案，点开属于你的那一份力量 ✦</span>
+            <button class="quiz-reset" type="button" @click="resetQuiz">↺ 重新作答</button>
+          </div>
+          <div class="quiz-done" v-if="answeredCount === quizTotal">
+            <span class="quiz-done-star">✦</span>
+            <span>20 句暖心的话已经送给你啦，愿你带着它们继续发光 ✦</span>
+          </div>
+          <div class="quiz-list">
+            <article class="quiz-card" v-for="q in quizzes" :key="q.id">
+              <div class="quiz-q-head">
+                <span class="quiz-no">{{ q.id }}</span>
+                <span class="quiz-q-text">{{ q.question }}</span>
+                <span class="quiz-q-state" :class="{ done: quizAnswers[q.id] !== undefined }">
+                  {{ quizAnswers[q.id] !== undefined ? '已作答' : '待作答' }}
+                </span>
+              </div>
+              <div class="quiz-options">
+                <button class="quiz-opt" type="button" v-for="(opt, oi) in q.options" :key="oi"
+                        :class="{ picked: quizAnswers[q.id] === oi }" @click="answerQuiz(q.id, oi)">
+                  <span class="quiz-opt-key">{{ 'ABCD'[oi] }}</span>
+                  <span class="quiz-opt-text">{{ opt }}</span>
+                </button>
+              </div>
+              <div class="quiz-feedback" v-if="quizAnswers[q.id] !== undefined">
+                <span class="quiz-ok-badge">✓ 回答正确</span>
+                <span class="quiz-picked">你选了：{{ q.options[quizAnswers[q.id]] }}</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <template v-if="view !== 'favorites'">
         <div class="filters" v-if="view === 'feed' && !showAnime">
           <div class="tabs">
             <button class="tab" :class="{ active: activeCategory === '' }" type="button"
@@ -180,6 +215,7 @@
           </button>
         </div>
         <div class="more-hint" v-else-if="displayList.length">已经到底啦 ✦</div>
+        </template>
       </section>
 
       <!-- ===== 娱乐页：快手式「关注 / 精选 / 热门」+ 双列瀑布流 ===== -->
@@ -581,6 +617,7 @@ import {
 import { loadHomeConfig, iconSvg, DEFAULT_CONFIG } from '../homeConfig'
 import { animeChars } from '../data/animeChars'
 import { coverImg, videoFor, DRAMA_TITLES } from '../data/dramaMedia'
+import { INSPIRE_QUIZZES } from '../data/inspireQuizzes'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -627,7 +664,7 @@ function flash(msg) {
 }
 
 /* ---- 首页展示状态 ---- */
-/** 当前主视图：feed 梦境精选 / favorites 我的收藏 / profile 娱乐（快手式内容流） */
+/** 当前主视图：feed 梦境精选 / favorites 励志 / profile 娱乐（快手式内容流） */
 const view = ref('feed')
 const stats = ref(null)
 const categories = ref([])
@@ -652,6 +689,22 @@ const favTotal = ref(0)
 const favPage = ref(1)
 const favHasMore = ref(false)
 const loadingFav = ref(false)
+
+/* ---- 励志问卷状态 ----
+ * 20 道题，选任意一句都算正确：记录每题所选选项下标即可，
+ * 不存在「错误答案」。answeredCount 用于进度展示。 */
+const quizzes = INSPIRE_QUIZZES
+const quizTotal = quizzes.length
+const quizAnswers = ref({})            // { [题号]: 选项下标 }
+const answeredCount = computed(() => Object.keys(quizAnswers.value).length)
+function answerQuiz(qid, optIndex) {
+  quizAnswers.value = { ...quizAnswers.value, [qid]: optIndex }
+  if (answeredCount.value === quizTotal) flash('20 题全部完成，每一句都是送给你的力量 ✦')
+}
+function resetQuiz() {
+  quizAnswers.value = {}
+  flash('已重置，可以重新选一遍 ✦')
+}
 
 /* ---- 个人中心状态（已收进右上角「我」抽屉） ---- */
 const profile = ref(null)
@@ -1009,15 +1062,15 @@ const displayHasMore = computed(() => {
 })
 
 const sectionTitle = computed(() => {
-  if (view.value === 'favorites') return '我的收藏'
+  if (view.value === 'favorites') return '励志问卷 · 20 道小题'
   return showAnime.value ? '动漫人物' : '梦境精选'
 })
 const sectionCount = computed(() => {
-  if (view.value === 'favorites') return `共 ${formatNum(favTotal.value)} 场梦`
+  if (view.value === 'favorites') return `已作答 ${answeredCount.value} / ${quizTotal} 题`
   return showAnime.value ? `共 ${animeChars.length} 位角色` : `共 ${formatNum(feedTotal.value)} 场梦`
 })
 const emptyText = computed(() => {
-  if (view.value === 'favorites') return '还没有收藏任何梦，点卡片右下角的书签把它收下来吧 ✦'
+  if (view.value === 'favorites') return '还没有题目，稍后再来吧 ✦'
   return showAnime.value ? '这里还空空的，去收藏喜欢的角色吧 ✦' : '这里还空空的，去写下今晚的梦吧 ✦'
 })
 
@@ -1241,15 +1294,10 @@ function setSort(sort) {
   resetFeed()
 }
 
-/* ---- 我的收藏 ---- */
-async function openFavorites() {
-  if (isDemo.value) {
-    flash('演示模式下收藏不可用，请先启动后端服务')
-    return
-  }
+/* ---- 励志问卷 ---- */
+function openFavorites() {
+  // 励志问卷为纯前端内容，演示模式/后端模式均可直接作答，无需加载后端收藏
   view.value = 'favorites'
-  favPage.value = 1
-  await loadFavorites(false)
 }
 
 function backToFeed() {
@@ -1429,7 +1477,7 @@ async function favoriteDream(card) {
     const data = (res && res.data) || {}
     card.favorited = !!data.favorited
     syncCard(card.id, { favorited: card.favorited })
-    flash(data.favorited ? '已收进「我的收藏」✦' : '已取消收藏')
+    flash(data.favorited ? '已收进「励志」✦' : '已取消收藏')
     // 在收藏列表里取消收藏：立即把它移出列表，避免看起来"点了没反应"
     if (view.value === 'favorites' && !card.favorited) {
       favorites.value = favorites.value.filter(d => d.id !== card.id)
@@ -2759,5 +2807,95 @@ onMounted(() => {
 .home-stage.dreamy .toast {
   background: rgba(79, 138, 102, .95);
   box-shadow: 0 10px 30px rgba(79, 138, 102, .4);
+}
+
+/* ===== 励志问卷 ===== */
+.quiz-wrap { margin-top: 4px; }
+.quiz-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 18px; margin-bottom: 16px;
+  background: linear-gradient(120deg, rgba(127, 179, 154, .14), rgba(217, 194, 122, .16));
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.quiz-banner-tip { font-size: 13.5px; color: var(--ink); letter-spacing: .03em; }
+.quiz-reset {
+  flex: 0 0 auto; padding: 6px 14px; border-radius: 18px; cursor: pointer;
+  font-size: 12.5px; color: var(--grad-b); background: var(--card-bg);
+  border: 1px solid var(--gold-2); transition: transform .2s, background .2s;
+}
+.quiz-reset:hover { transform: translateY(-1px); background: rgba(217, 194, 122, .18); }
+.quiz-done {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 18px; margin-bottom: 16px; border-radius: 14px;
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  background: linear-gradient(120deg, rgba(127, 179, 154, .22), rgba(217, 194, 122, .28));
+  border: 1px solid var(--gold-2);
+  animation: quizPop .45s ease both;
+}
+.quiz-done-star { color: var(--grad-b); font-size: 18px; }
+@keyframes quizPop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+
+.quiz-list { display: grid; gap: 16px; }
+.quiz-card {
+  padding: 18px 20px 16px; border-radius: 16px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 22px rgba(214, 158, 184, .16);
+  transition: box-shadow .2s;
+}
+.quiz-card:hover { box-shadow: 0 12px 28px rgba(214, 158, 184, .26); }
+.quiz-q-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.quiz-no {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 4px 10px rgba(217, 194, 122, .35);
+}
+.quiz-q-text { flex: 1; font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.6; }
+.quiz-q-state {
+  flex: 0 0 auto; font-size: 11.5px; color: var(--muted);
+  padding: 3px 10px; border-radius: 12px; background: var(--field-bg);
+}
+.quiz-q-state.done { color: var(--link); background: rgba(127, 179, 154, .16); }
+.quiz-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.quiz-opt {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 11px 13px; border-radius: 12px; cursor: pointer;
+  font-size: 13.5px; line-height: 1.55; color: var(--ink);
+  background: var(--field-bg); border: 1px solid var(--field-border);
+  transition: transform .18s, border-color .18s, background .18s, box-shadow .18s;
+}
+.quiz-opt:hover { transform: translateY(-2px); border-color: var(--gold-2); box-shadow: 0 8px 18px rgba(214, 158, 184, .2); }
+.quiz-opt.picked {
+  border-color: var(--grad-a);
+  background: linear-gradient(120deg, rgba(127, 179, 154, .2), rgba(217, 194, 122, .18));
+  box-shadow: 0 6px 16px rgba(127, 179, 154, .28);
+}
+.quiz-opt-key {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--grad-b);
+  background: rgba(217, 194, 122, .16); border: 1px solid var(--gold-2);
+}
+.quiz-opt.picked .quiz-opt-key { color: #fff; background: var(--grad-a); border-color: var(--grad-a); }
+.quiz-opt-text { flex: 1; }
+.quiz-feedback {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border);
+  font-size: 12.5px; animation: quizPop .3s ease both;
+}
+.quiz-ok-badge {
+  padding: 3px 10px; border-radius: 12px; font-weight: 600; color: #fff;
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+}
+.quiz-picked { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .quiz-options { grid-template-columns: 1fr; }
+  .quiz-banner { flex-direction: column; align-items: flex-start; }
+  .quiz-card { padding: 15px 14px 13px; }
+  .quiz-q-head { gap: 9px; }
 }
 </style>

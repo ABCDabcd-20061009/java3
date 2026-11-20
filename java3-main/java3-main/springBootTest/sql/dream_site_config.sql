@@ -24,7 +24,7 @@ INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, stat
 SELECT 'nav_menu','square','梦境精选','square',1,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='nav_menu' AND config_key='square');
 INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, status, create_time)
-SELECT 'nav_menu','favorites','我的收藏','favorites',2,1,NOW() FROM DUAL
+SELECT 'nav_menu','favorites','励志','favorites',2,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='nav_menu' AND config_key='favorites');
 INSERT INTO t_site_config (config_type, config_key, label, target, sort_no, status, create_time)
 SELECT 'nav_menu','profile','娱乐','profile',3,1,NOW() FROM DUAL
@@ -41,7 +41,7 @@ INSERT INTO t_site_config (config_type, config_key, label, sub_label, icon_key, 
 SELECT 'shortcut','write_dream','写一场梦','把昨夜的梦记录下来','edit','profile',1,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='shortcut' AND config_key='write_dream');
 INSERT INTO t_site_config (config_type, config_key, label, sub_label, icon_key, target, sort_no, status, create_time)
-SELECT 'shortcut','go_favorites','我的收藏','回头看看收藏的梦','heart','favorites',2,1,NOW() FROM DUAL
+SELECT 'shortcut','go_favorites','励志','收藏激励自己的梦','fire','favorites',2,1,NOW() FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM t_site_config WHERE config_type='shortcut' AND config_key='go_favorites');
 INSERT INTO t_site_config (config_type, config_key, label, sub_label, icon_key, target, sort_no, status, create_time)
 SELECT 'shortcut','go_drama','广播剧','戴上耳机听一场梦','play','drama',3,1,NOW() FROM DUAL

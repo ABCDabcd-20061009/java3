@@ -1,5 +1,5 @@
 ============================================================
-广播剧 11 个视频 备份清单  更新于 2026-11-18 09:20
+广播剧 11 个视频 备份清单  更新于 2026-11-20 15:55
 ============================================================
 
 文件名 = <slug>.mp4，与剧名一一对应（顺序即首页广播剧展示顺序）:
@@ -44,9 +44,21 @@
   ancient-modern.mp4  44304703bc7814be   11,969,470 B  (7 处点位全部一致)
   peace-elite.mp4     64a7c9e725464410    6,914,429 B  (7 处点位全部一致)
 
-恢复方法:
-  将任一备份点位的 <slug>.mp4 复制回
-  vue-dream-login\public\drama-media\videos\ 即可。
+恢复方法（2026-11-20 更新）:
+  ★ 最简单：双击 vue-dream-login\恢复视频备份.bat
+    自动从最先找到的备份点位把 11 个视频+封面恢复到
+    public\drama-media\videos\ 与 covers\，恢复完刷新浏览器即可。
+  ★ 手工：将任一备份点位的 <slug>.mp4 复制回
+    vue-dream-login\public\drama-media\videos\ 即可。
+
+2026-11-20 修复记录:
+  - 此前环境重置导致两个新增视频 (ancient-modern / peace-elite) 在 7 处
+    备份点位全部丢失，本日已从桌面源文件恢复到全部点位（SHA256 校验一致）。
+  - 重新从视频抽帧生成了这两个视频的封面（ancient-modern.webp / peace-elite.webp），
+    异地备份在 D:\workSpace\drama-video-backup\covers\。
+  - 注意：t_drama 表里这两个剧的 duration 字段填反了（古人闯现代填 01:00、
+    和平精英填 02:42），但视频文件映射以本清单 SHA256 为准，不要按 duration 反推。
+    真实对应：ancient-modern=古人闯现代(162s, c4f3)、peace-elite=和平精英(61s, c043)。
 
 说明: 前端「视频画面」模式通过 videoFor(title) 读取
       public/drama-media/videos/<slug>.mp4。

@@ -48,12 +48,24 @@ if errorlevel 1 (
 )
 echo [1/2] Node.js OK
 
-rem ===== 2. install deps if vite missing (CN mirror, fallback to npmjs) =====
-if not exist "%~dp0node_modules\.bin\vite" (
-    echo [info] vite missing, installing dependencies ...
+rem ===== 2. 依赖完整性检测 + 自愈重装 =====
+rem 旧版只检查 .bin\vite，安装被中断后会残留"半成品"：包目录在、但 .bin 和原生二进制缺失。
+rem npm 认为已安装、不会补生成可执行文件，于是每次启动要么卡在 install，要么报 spawn EFTYPE。
+rem 这里连 esbuild 原生二进制一起探测，任一缺失就先清理残留目录再干净重装。
+set "DEPS_OK="
+if exist "%~dp0node_modules\.bin\vite" if exist "%~dp0node_modules\@esbuild\win32-x64\esbuild.exe" set "DEPS_OK=1"
+
+if not defined DEPS_OK (
+    if exist "%~dp0node_modules" (
+        echo [info] 检测到残缺依赖，正在清理旧目录 ...
+        rmdir /s /q "%~dp0node_modules" >nul 2>&1
+    )
+    echo [info] vite missing/broken, installing dependencies ...
+    echo [info] 首次安装约需 30-60 秒，期间滚动的 reify 日志属正常，请勿关闭窗口。
     call npm install --registry=https://registry.npmmirror.com
     if errorlevel 1 (
         echo [warn] npmmirror failed, try registry.npmjs.org ...
+        if exist "%~dp0node_modules" rmdir /s /q "%~dp0node_modules" >nul 2>&1
         call npm install --registry=https://registry.npmjs.org
     )
     if errorlevel 1 (
@@ -100,7 +112,7 @@ echo 正在启动 Vite，约 6 秒后自动用默认浏览器打开 http://%LANIP%:5173/
 echo 若浏览器没弹出，手动复制上面的「局域网访问」地址打开即可。
 echo.
 
-rem 延迟 6 秒（ping 6 次 ≈ 6 秒，比 timeout 更稳：不受输入重定向影响）再打开浏览器，
+rem 延迟 6 秒（ping 7 次 ≈ 6 秒，比 timeout 更稳：不受输入重定向影响）再打开浏览器，
 rem 等 Vite 真正就绪，避免刚启动就打开显示"无法访问"
 start "" /b cmd /c "ping -n 7 127.0.0.1 >nul & start http://%LANIP%:5173/"
 

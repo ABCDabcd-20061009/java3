@@ -79,6 +79,8 @@
             </button>
           </label>
           <div class="hint" v-if="errors.code">{{ errors.code }}</div>
+          <!-- 验证码常驻提示：演示环境不发短信/邮件，验证码直接显示在这里，避免一闪而过看不到 -->
+          <div class="code-notice" v-if="codeNotice" :class="{ err: codeNoticeErr }">{{ codeNotice }}</div>
         </div>
 
         <!-- 密码 -->
@@ -163,6 +165,9 @@ const agree = ref(false)
 // 演示模式：后端不可用时本地生成验证码
 const mockCode = ref('')
 const isMock = ref(false)
+// 验证码常驻提示（演示环境不发短信/邮件，直接展示在输入框下方）
+const codeNotice = ref('')
+const codeNoticeErr = ref(false)
 let sendTimer = null
 
 const errors = reactive({ username: '', code: '', password: '', confirm: '', agree: '' })
@@ -177,10 +182,10 @@ const wechatIcon = `<svg viewBox="0 0 24 24" width="22" height="22" fill="#1aad1
 const googleIcon = `<svg viewBox="0 0 24 24" width="20" height="20"><text x="12" y="17" font-size="17" font-family="Arial, sans-serif" font-weight="700" text-anchor="middle" fill="#4285F4">G</text></svg>`
 
 let timer = null
-function flash(msg) {
+function flash(msg, duration = 2600) {
   toastMsg.value = msg
   clearTimeout(timer)
-  timer = setTimeout(() => (toastMsg.value = ''), 2600)
+  timer = setTimeout(() => (toastMsg.value = ''), duration)
 }
 
 function togglePwd() { showPwd.value = !showPwd.value }
@@ -313,26 +318,46 @@ function startCountdown() {
 
 async function sendVerificationCode() {
   if (sending.value || countdown.value > 0) return
-  if (!validateField('username')) return
+  if (!validateField('username')) {
+    // 用户名不合法时给一个明确的顶部提示，避免用户以为按钮坏了
+    flash(errors.username || '请先填写正确的用户名（2-20 个字符）', 4000)
+    return
+  }
   sending.value = true
+  codeNoticeErr.value = false
+  codeNotice.value = '正在发送…'
   try {
     const res = await sendCode({ account: username.value.trim(), type: 'register' })
     isMock.value = false
     mockCode.value = ''
-    // 后端会在 data.devCode 里返回验证码，便于开发联调
+    // 后端会在 data.devCode 里返回验证码；演示环境不发短信/邮件，直接常驻显示并自动填入
     const devCode = res && res.data && res.data.devCode
-    flash(devCode ? `验证码已发送（演示：${devCode}）` : '验证码已发送 ✉')
+    if (devCode) {
+      code.value = devCode
+      setPass('code')
+      codeNotice.value = `本次验证码：${devCode} —— 演示环境不发短信/邮件，已自动填入，直接注册即可`
+      flash(`验证码：${devCode}（已自动填入）`, 6000)
+    } else {
+      codeNotice.value = '验证码已发送，请查收'
+      flash('验证码已发送 ✉')
+    }
     startCountdown()
   } catch (e) {
     if (!e.isNetwork) {
       // 后端返回的业务错误（如用户名已被使用），直接展示
-      flash(e.message || '验证码发送失败，请稍后重试')
+      const msg = e.message || '验证码发送失败，请稍后重试'
+      codeNoticeErr.value = true
+      codeNotice.value = msg
+      flash(msg, 5000)
       return
     }
-    // 后端未连接时进入演示模式：本地生成验证码，方便前端联调
+    // 后端未连接时进入演示模式：本地生成验证码并自动填入，方便前端联调
     mockCode.value = String(Math.floor(100000 + Math.random() * 900000))
     isMock.value = true
-    flash(`演示模式：本次验证码为 ${mockCode.value}`)
+    code.value = mockCode.value
+    setPass('code')
+    codeNotice.value = `演示模式验证码：${mockCode.value} —— 已自动填入，直接注册即可`
+    flash(`演示模式：本次验证码为 ${mockCode.value}（已自动填入）`, 6000)
     startCountdown()
   } finally {
     sending.value = false
@@ -385,6 +410,8 @@ function resetRegisterForm() {
   agree.value = false
   mockCode.value = ''
   isMock.value = false
+  codeNotice.value = ''
+  codeNoticeErr.value = false
   countdown.value = 0
   clearInterval(sendTimer)
   sendTimer = null
@@ -505,6 +532,23 @@ onBeforeUnmount(() => { if (sendTimer) clearInterval(sendTimer) })
 }
 .code-btn:hover:not(:disabled) { filter: brightness(1.05); }
 .code-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* 验证码常驻提示：演示环境不发短信，验证码一直显示在这里 */
+.code-notice {
+  margin: 6px 2px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px; line-height: 1.55; letter-spacing: .02em;
+  background: rgba(200, 230, 210, .10);
+  border: 1px solid rgba(160, 220, 175, .35);
+  color: #b6e6c2;
+  word-break: break-all;
+}
+.code-notice.err {
+  background: rgba(230, 130, 130, .10);
+  border-color: rgba(230, 130, 130, .4);
+  color: #f0a0a8;
+}
 
 .agree {
   display: flex; align-items: flex-start; gap: 8px;

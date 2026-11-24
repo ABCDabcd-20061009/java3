@@ -8,14 +8,14 @@ import { fetchHomeConfig } from './api'
 export const DEFAULT_CONFIG = {
   navMenu: [
     { key: 'square', label: '动漫人物', target: 'square' },
-    { key: 'favorites', label: '我的收藏', target: 'favorites' },
-    { key: 'profile', label: '我的梦境', target: 'profile' },
+    { key: 'favorites', label: '励志', target: 'favorites' },
+    { key: 'profile', label: '娱乐', target: 'profile' },
     { key: 'drama', label: '广播剧', target: 'drama' },
     { key: 'help', label: '帮助中心', target: 'help' }
   ],
   shortcut: [
     { key: 'write_dream', title: '写一场梦', desc: '把昨夜的梦记录下来', iconKey: 'edit', target: 'profile' },
-    { key: 'go_favorites', title: '我的收藏', desc: '回头看看收藏的梦', iconKey: 'heart', target: 'favorites' },
+    { key: 'go_favorites', title: '励志', desc: '收藏激励自己的梦', iconKey: 'fire', target: 'favorites' },
     { key: 'go_drama', title: '广播剧', desc: '戴上耳机听一场梦', iconKey: 'play', target: 'drama' },
     { key: 'go_square', title: '动漫人物', desc: '看看喜欢的动漫角色', iconKey: 'star', target: 'square' },
     { key: 'go_profile', title: '个人中心', desc: '我的创作与数据', iconKey: 'user', target: 'profile' }

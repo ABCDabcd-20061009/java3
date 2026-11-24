@@ -23,7 +23,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
           后台管理
         </button>
-        <div class="avatar" :title="user.username">{{ initial }}</div>
+        <div class="avatar" :title="'个人中心：' + user.username" @click="openMe">{{ initial }}</div>
         <span class="nav-name">{{ user.username }}</span>
         <button class="logout-btn" type="button" @click="$emit('logout')">退出登录</button>
       </div>
@@ -32,7 +32,7 @@
     <!-- ===== 页面内容（广播剧视图时隐藏，由 DramaPage 接管） ===== -->
     <div class="content" v-if="view !== 'drama'">
       <!-- 搜索区 -->
-      <section class="hero">
+      <section class="hero" v-if="view !== 'profile'">
         <p class="hero-sub">{{ siteText.hero_sub }}</p>
         <p class="greet">欢迎回来，{{ user.username }} ✦ 今天想找一场怎样的梦？</p>
 
@@ -97,36 +97,15 @@
       </section>
 
       <!-- 首页统计条 -->
-      <section class="stats" v-if="stats">
+      <section class="stats" v-if="stats && view !== 'profile'">
         <div class="stat-box" v-for="s in statList" :key="s.label">
           <span class="stat-num">{{ formatNum(s.value) }}</span>
           <span class="stat-label">{{ s.label }}</span>
         </div>
       </section>
 
-      <!-- 个人中心头部（仅个人中心视图） -->
-      <section class="section profile-section" v-if="view === 'profile'">
-        <div class="profile-card">
-          <div class="profile-avatar">{{ initial }}</div>
-          <div class="profile-main">
-            <div class="profile-name">{{ user.username }}</div>
-            <div class="profile-desc">
-              造梦者 · 已记录 {{ formatNum(profileStats.dreamCount || 0) }} 场梦 · 收获
-              {{ formatNum(profileStats.likeCount || 0) }} 次点赞
-            </div>
-          </div>
-          <button class="search-btn" type="button" @click="openEditor(null)">+ 写一场梦</button>
-        </div>
-        <div class="stats profile-stats">
-          <div class="stat-box" v-for="s in profileStatList" :key="s.label">
-            <span class="stat-num">{{ formatNum(s.value) }}</span>
-            <span class="stat-label">{{ s.label }}</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 首页展示区：梦境精选 / 我的收藏 / 我的梦境 -->
-      <section class="section">
+      <!-- 首页展示区：梦境精选 / 励志 / 娱乐（快手式内容流） -->
+      <section class="section" v-if="view !== 'profile'">
         <div class="section-head">
           <span class="dot"></span>
           <span>{{ sectionTitle }}</span>
@@ -140,6 +119,41 @@
           </button>
         </div>
 
+        <!-- ===== 励志问卷：20 道题，选哪一句都算正确 ===== -->
+        <div class="quiz-wrap" v-if="view === 'favorites'">
+          <div class="quiz-banner">
+            <span class="quiz-banner-tip">每一句都是答案，点开属于你的那一份力量 ✦</span>
+            <button class="quiz-reset" type="button" @click="resetQuiz">↺ 重新作答</button>
+          </div>
+          <div class="quiz-done" v-if="answeredCount === quizTotal">
+            <span class="quiz-done-star">✦</span>
+            <span>20 句暖心的话已经送给你啦，愿你带着它们继续发光 ✦</span>
+          </div>
+          <div class="quiz-list">
+            <article class="quiz-card" v-for="q in quizzes" :key="q.id">
+              <div class="quiz-q-head">
+                <span class="quiz-no">{{ q.id }}</span>
+                <span class="quiz-q-text">{{ q.question }}</span>
+                <span class="quiz-q-state" :class="{ done: quizAnswers[q.id] !== undefined }">
+                  {{ quizAnswers[q.id] !== undefined ? '已作答' : '待作答' }}
+                </span>
+              </div>
+              <div class="quiz-options">
+                <button class="quiz-opt" type="button" v-for="(opt, oi) in q.options" :key="oi"
+                        :class="{ picked: quizAnswers[q.id] === oi }" @click="answerQuiz(q.id, oi)">
+                  <span class="quiz-opt-key">{{ 'ABCD'[oi] }}</span>
+                  <span class="quiz-opt-text">{{ opt }}</span>
+                </button>
+              </div>
+              <div class="quiz-feedback" v-if="quizAnswers[q.id] !== undefined">
+                <span class="quiz-ok-badge">✓ 回答正确</span>
+                <span class="quiz-picked">你选了：{{ q.options[quizAnswers[q.id]] }}</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <template v-if="view !== 'favorites'">
         <div class="filters" v-if="view === 'feed' && !showAnime">
           <div class="tabs">
             <button class="tab" :class="{ active: activeCategory === '' }" type="button"
@@ -182,12 +196,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
                 {{ formatNum(d.views) }}
               </span>
-              <!-- 我的梦境：自己的内容不显示点赞/收藏，改为编辑与删除 -->
-              <template v-if="view === 'profile'">
-                <button class="mini-btn" type="button" title="编辑" @click.stop="openEditor(d)">编辑</button>
-                <button class="mini-btn danger" type="button" title="删除" @click.stop="askDelete(d)">删除</button>
-              </template>
-              <template v-else-if="!d.anime">
+              <template v-if="!d.anime">
                 <button class="like-btn" :class="{ liked: d.liked }" type="button" title="点赞" @click.stop="likeDream(d)">
                   <svg viewBox="0 0 24 24" :fill="d.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/></svg>
                   {{ formatNum(d.likes) }}
@@ -206,6 +215,68 @@
           </button>
         </div>
         <div class="more-hint" v-else-if="displayList.length">已经到底啦 ✦</div>
+        </template>
+      </section>
+
+      <!-- ===== 娱乐页：快手式「关注 / 精选 / 热门」+ 双列瀑布流 ===== -->
+      <section class="section ent-section" v-else-if="view === 'profile'">
+        <div class="ent-tabs">
+          <button class="ent-tab" :class="{ active: entTab === t.key }" type="button"
+                  v-for="t in ENT_TABS" :key="t.key" @click="switchEntTab(t.key)">
+            {{ t.label }}
+          </button>
+          <button class="ent-immersive" type="button" v-if="entList.length" @click="openImmersive"
+                  title="全屏上下滑动刷内容">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
+            沉浸刷剧
+          </button>
+        </div>
+
+        <div class="ent-empty" v-if="!entList.length && !displayLoading">
+          <template v-if="entTab === 'follow'">
+            <p>还没有关注的人 ✦</p>
+            <p class="ent-empty-sub">去「精选」看看，点作者旁的「+ 关注」，TA 的新内容就会出现在这里</p>
+          </template>
+          <template v-else>
+            <p>这里还空空的，去写一场梦吧 ✦</p>
+          </template>
+        </div>
+
+        <div class="ent-waterfall" v-else>
+          <article class="ks-card" v-for="(item, i) in entList" :key="item.uid"
+                   :style="{ animationDelay: (i * 0.04) + 's' }" @click="openEntItem(item)">
+            <div class="ks-cover" :class="'cover-' + (item.categoryCode || 'essay')">
+              <img v-if="item.cover" class="ks-img" :src="item.cover" :alt="item.title" loading="lazy" />
+              <span v-else class="cover-ini">{{ (item.title || '梦').charAt(0) }}</span>
+              <span class="card-tag">{{ item.category }}</span>
+              <span class="ks-duration" v-if="item.duration">{{ item.duration }}</span>
+            </div>
+            <div class="ks-info">
+              <div class="ks-title">{{ item.title }}</div>
+              <div class="ks-summary" v-if="item.summary">{{ item.summary }}</div>
+              <div class="ks-meta">
+                <span class="mini-avatar">{{ item.avatarText }}</span>
+                <span class="ks-author">{{ item.authorName }}</span>
+                <button class="ks-follow" v-if="!isSelfItem(item) && !follows.includes(item.authorName)"
+                        type="button" @click.stop="toggleFollow(item)">＋ 关注</button>
+                <span class="ks-followed" v-else-if="!isSelfItem(item)">已关注</span>
+                <span class="ks-spacer"></span>
+                <button class="ks-like" :class="{ liked: item.liked }" type="button"
+                        @click.stop="entLike(item)">
+                  <svg viewBox="0 0 24 24" :fill="item.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/></svg>
+                  {{ formatNum(item.likes) }}
+                </button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="more" v-if="displayHasMore">
+          <button class="more-btn" type="button" :disabled="displayLoading" @click="onLoadMore">
+            {{ displayLoading ? '加载中…' : '加载更多' }}
+          </button>
+        </div>
+        <div class="more-hint" v-else-if="entList.length">已经到底啦 ✦</div>
       </section>
 
       <!-- 热门推荐（大家都在看） -->
@@ -233,8 +304,8 @@
         </div>
       </section>
 
-      <!-- 快捷入口区 -->
-      <section class="section">
+      <!-- 快捷入口区（娱乐视图下让位给内容流） -->
+      <section class="section" v-if="view !== 'profile'">
         <div class="section-head"><span class="dot"></span><span>快捷入口</span></div>
         <div class="cards">
           <button class="shortcut-card" v-for="s in shortcuts" :key="s.key || s.title" type="button"
@@ -367,12 +438,165 @@
       </div>
     </div>
 
+    <!-- ===== 「我」抽屉：原个人中心（统计数据 + 写梦 + 我的作品管理） ===== -->
+    <div class="me-mask" v-if="meOpen" @click.self="closeMe">
+      <aside class="me-drawer">
+        <header class="me-head">
+          <span class="me-title">我</span>
+          <button class="detail-close" type="button" @click="closeMe" aria-label="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </header>
+
+        <div class="me-body">
+          <div class="profile-card">
+            <div class="profile-avatar">{{ initial }}</div>
+            <div class="profile-main">
+              <div class="profile-name">{{ user.username }}</div>
+              <div class="profile-desc">
+                造梦者 · 已记录 {{ formatNum(profileStats.dreamCount || 0) }} 场梦 · 收获
+                {{ formatNum(profileStats.likeCount || 0) }} 次点赞
+              </div>
+            </div>
+          </div>
+          <div class="stats profile-stats">
+            <div class="stat-box" v-for="s in profileStatList" :key="s.label">
+              <span class="stat-num">{{ formatNum(s.value) }}</span>
+              <span class="stat-label">{{ s.label }}</span>
+            </div>
+          </div>
+          <button class="search-btn me-write" type="button" @click="openEditor(null)">＋ 写一场梦</button>
+
+          <div class="me-list-title">我的作品 <span class="count">共 {{ myTotal }} 条</span></div>
+          <div class="empty" v-if="!myDreams.length && !loadingMine">你还没有记录过梦境，点上面的「写一场梦」开始吧 ✦</div>
+          <div class="me-dream-list">
+            <div class="me-dream" v-for="d in myDreams" :key="d.id">
+              <div class="me-dream-main" @click="openDetail(d)">
+                <div class="me-dream-title">{{ d.title }}</div>
+                <div class="me-dream-meta">
+                  <span>{{ d.timeText }}</span>
+                  <span class="foot-stat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    {{ formatNum(d.views) }}
+                  </span>
+                </div>
+              </div>
+              <div class="me-dream-ops">
+                <button class="mini-btn" type="button" @click="openEditor(d)">编辑</button>
+                <button class="mini-btn danger" type="button" @click="askDelete(d)">删除</button>
+              </div>
+            </div>
+          </div>
+          <div class="more" v-if="myHasMore">
+            <button class="more-btn" type="button" :disabled="loadingMine" @click="onLoadMore">
+              {{ loadingMine ? '加载中…' : '加载更多' }}
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ===== 沉浸式竖滑播放流（快手式：滚轮/上下滑动切换，当前条自动播放） ===== -->
+    <div class="ks-full" v-if="feedOpen" ref="feedFull">
+      <div class="ks-full-body" ref="feedWrap" @scroll="onFeedScroll">
+        <section class="ks-slide" v-for="(item, i) in entList" :key="item.uid">
+          <div class="ks-slide-bg" v-if="item.cover"
+               :style="{ backgroundImage: 'url(' + item.cover + ')' }"></div>
+
+          <template v-if="item.kind === 'drama'">
+            <video class="ks-slide-video" :src="item.videoUrl" :poster="item.cover"
+                   loop playsinline preload="metadata" @error="flash('视频加载失败，请稍后重试')"></video>
+            <button class="ks-slide-tap" type="button" aria-label="播放/暂停" @click="tapSlide"></button>
+          </template>
+          <div v-else class="ks-slide-dream">
+            <img v-if="item.cover" class="ks-dream-img" :src="item.cover" :alt="item.title" />
+            <div v-else class="ks-dream-fallback"><span>{{ (item.title || '梦').charAt(0) }}</span></div>
+          </div>
+
+          <!-- 右侧互动栏 -->
+          <div class="ks-rail">
+            <div class="ks-rail-avatar">{{ item.avatarText }}</div>
+            <button class="ks-rail-btn" :class="{ active: follows.includes(item.authorName) }"
+                    type="button" @click="toggleFollow(item)">
+              {{ follows.includes(item.authorName) ? '已关注' : '＋ 关注' }}
+            </button>
+            <button class="ks-rail-btn heart" :class="{ liked: item.liked }" type="button" @click="entLike(item)">
+              <svg viewBox="0 0 24 24" :fill="item.liked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8.1a4.1 4.1 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20Z"/></svg>
+              <span>{{ formatNum(item.likes) }}</span>
+            </button>
+            <button class="ks-rail-btn" type="button" @click="sharePlayer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M7 8l5-5 5 5"/></svg>
+              <span>分享</span>
+            </button>
+          </div>
+
+          <!-- 底部信息区 -->
+          <div class="ks-slide-info">
+            <div class="ks-player-author">@{{ item.authorName }}</div>
+            <div class="ks-player-title">{{ item.title }}</div>
+            <div class="ks-player-summary" v-if="item.summary">{{ item.summary }}</div>
+            <div class="ks-player-tags" v-if="item.tags && item.tags.length">
+              <span v-for="t in item.tags" :key="t">#{{ t }}</span>
+            </div>
+            <div class="ks-player-meta">
+              {{ formatNum(item.views) }} 次播放<template v-if="item.duration"> · {{ item.duration }}</template><template v-if="item.platform"> · {{ item.platform }}</template>
+            </div>
+          </div>
+
+          <!-- 首条的上下滑动提示 -->
+          <div class="ks-swipe-hint" v-if="i === 0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 11l6-6 6 6M6 13l6 6 6-6" opacity="0"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>
+            <span>上下滑动切换</span>
+          </div>
+        </section>
+        <div class="ks-full-end">已经到底啦，回瀑布流再挑一条吧 ✦</div>
+      </div>
+
+      <button class="ks-full-back" type="button" @click="backToEntertainment" aria-label="返回娱乐页">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        <span>返回娱乐</span>
+      </button>
+      <button class="ks-full-fscreen" type="button" @click="toggleFeedFullscreen"
+              :aria-label="isFeedFullscreen ? '退出全屏' : '全屏观看'">
+        <svg v-if="!isFeedFullscreen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5"/></svg>
+      </button>
+      <button class="ks-full-close" type="button" @click="closeFeed" aria-label="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+
+    <!-- ===== 移动端底部 Tab 栏（手机上没有悬浮导航，模仿快手底部导航） ===== -->
+    <nav class="mobile-tabbar">
+      <button class="mtab" :class="{ active: view === 'feed' }" type="button" @click="onMenu('square')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>
+        <span>首页</span>
+      </button>
+      <button class="mtab" :class="{ active: view === 'profile' }" type="button" @click="onMenu('profile')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M10 9.5l5 2.5-5 2.5z"/></svg>
+        <span>娱乐</span>
+      </button>
+      <button class="mtab" :class="{ active: view === 'drama' }" type="button" @click="onMenu('drama')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4.5" height="7" rx="1.6"/><rect x="16.5" y="13" width="4.5" height="7" rx="1.6"/></svg>
+        <span>广播剧</span>
+      </button>
+      <button class="mtab" :class="{ active: view === 'favorites' }" type="button" @click="onMenu('favorites')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v16l-5-3.8L7 20z"/></svg>
+        <span>收藏</span>
+      </button>
+      <button class="mtab" type="button" @click="openMe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.4-3.8 4.2-5.6 7.5-5.6s6.1 1.8 7.5 5.6"/></svg>
+        <span>我</span>
+      </button>
+    </nav>
+
     <div class="toast" :class="{ show: toastMsg }">{{ toastMsg }}</div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import DramaPage from './DramaPage.vue'
 import {
   fetchHomeOverview,
@@ -386,10 +610,14 @@ import {
   updateDream,
   deleteDream as removeDream,
   fetchMyDreams,
-  fetchUserProfile
+  fetchUserProfile,
+  fetchDramaList,
+  fetchDramaDetail
 } from '../api'
 import { loadHomeConfig, iconSvg, DEFAULT_CONFIG } from '../homeConfig'
 import { animeChars } from '../data/animeChars'
+import { coverImg, videoFor, DRAMA_TITLES } from '../data/dramaMedia'
+import { INSPIRE_QUIZZES } from '../data/inspireQuizzes'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -436,7 +664,7 @@ function flash(msg) {
 }
 
 /* ---- 首页展示状态 ---- */
-/** 当前主视图：feed 动漫人物 / favorites 我的收藏 / profile 个人中心（我的梦境） */
+/** 当前主视图：feed 梦境精选 / favorites 励志 / profile 娱乐（快手式内容流） */
 const view = ref('feed')
 const stats = ref(null)
 const categories = ref([])
@@ -462,44 +690,391 @@ const favPage = ref(1)
 const favHasMore = ref(false)
 const loadingFav = ref(false)
 
-/* ---- 个人中心状态 ---- */
+/* ---- 励志问卷状态 ----
+ * 20 道题，选任意一句都算正确：记录每题所选选项下标即可，
+ * 不存在「错误答案」。answeredCount 用于进度展示。 */
+const quizzes = INSPIRE_QUIZZES
+const quizTotal = quizzes.length
+const quizAnswers = ref({})            // { [题号]: 选项下标 }
+const answeredCount = computed(() => Object.keys(quizAnswers.value).length)
+function answerQuiz(qid, optIndex) {
+  quizAnswers.value = { ...quizAnswers.value, [qid]: optIndex }
+  if (answeredCount.value === quizTotal) flash('20 题全部完成，每一句都是送给你的力量 ✦')
+}
+function resetQuiz() {
+  quizAnswers.value = {}
+  flash('已重置，可以重新选一遍 ✦')
+}
+
+/* ---- 个人中心状态（已收进右上角「我」抽屉） ---- */
 const profile = ref(null)
 const myDreams = ref([])
 const myTotal = ref(0)
 const myPage = ref(1)
 const myHasMore = ref(false)
 const loadingMine = ref(false)
+const meOpen = ref(false)
+
+/* ---- 娱乐页（快手式内容流）状态 ----
+ * 页签：关注（localStorage 记录关注的作者）/ 精选（梦境+广播剧混排）/ 热门（按浏览量）
+ * 数据源：梦境走 /home/feed，广播剧走 /drama/list，两路分页后交替合并成瀑布流。
+ */
+const ENT_TABS = [
+  { key: 'follow', label: '关注' },
+  { key: 'picked', label: '精选' },
+  { key: 'hot', label: '热门' }
+]
+const DRAMA_AUTHOR = '粉金梦境官方'
+const FOLLOW_KEY = 'dream-follows'
+const entTab = ref('picked')
+const entList = ref([])
+const entHasMore = ref(false)
+const entLoading = ref(false)
+const entLoadedOnce = ref(false)
+const entDramaPage = ref(1)
+const entDreamPage = ref(1)
+const entDramaHasMore = ref(true)
+const entDreamHasMore = ref(true)
+/** 沉浸式竖滑流（快手式上下滑动）：打开后每屏一条，滚轮/触摸/方向键切换 */
+const feedOpen = ref(false)
+const feedStart = ref(0)
+const feedWrap = ref(null)
+const feedFull = ref(null)          // 沉浸层根节点，用于浏览器全屏
+const isFeedFullscreen = ref(false) // 当前是否处于浏览器全屏
+const follows = ref((() => {
+  try { return JSON.parse(localStorage.getItem(FOLLOW_KEY)) || [] } catch (_) { return [] }
+})())
+
+function persistFollows() {
+  localStorage.setItem(FOLLOW_KEY, JSON.stringify(follows.value))
+}
+
+function mapDrama(d) {
+  return {
+    kind: 'drama',
+    uid: 'drama-' + d.id,
+    id: d.id,
+    title: d.title,
+    summary: d.summary,
+    cover: coverImg(d.title),
+    category: d.category,
+    categoryCode: d.categoryCode,
+    duration: d.duration,
+    views: d.views,
+    likes: d.likes,
+    liked: false,
+    authorName: DRAMA_AUTHOR,
+    avatarText: '粉',
+    platform: d.platform,
+    videoUrl: d.videoUrl,
+    tags: d.tags || []
+  }
+}
+
+function mapDream(d) {
+  return {
+    kind: 'dream',
+    uid: 'dream-' + d.id,
+    ref: d,
+    id: d.id,
+    title: d.title,
+    summary: d.summary,
+    cover: d.img || d.coverUrl || '',
+    category: d.category,
+    categoryCode: d.categoryCode,
+    views: d.views,
+    likes: d.likes,
+    liked: !!d.liked,
+    authorName: d.authorName,
+    avatarText: d.avatarText || '梦',
+    tags: d.tags || []
+  }
+}
+
+function isSelfItem(item) {
+  return item && item.authorName === props.user.username
+}
+
+/** 打开娱乐页（导航「娱乐」/ 快捷入口） */
+function openEntertainment() {
+  view.value = 'profile'
+  if (isDemo.value) {
+    // 演示模式：同样只展示九部带封面的本地广播剧，不铺无封面的梦境卡片
+    if (!entList.value.length) {
+      entList.value = localDramaCards()
+      entHasMore.value = false
+      entLoadedOnce.value = true
+    }
+    return
+  }
+  if (!entLoadedOnce.value) {
+    loadEnt(false)
+  }
+}
+
+function switchEntTab(key) {
+  if (entTab.value === key) return
+  entTab.value = key
+  loadEnt(false)
+}
+
+/** 两路数据交替合并：剧、梦、剧、梦… */
+function interleave(dramas, dreams) {
+  const out = []
+  const max = Math.max(dramas.length, dreams.length)
+  for (let i = 0; i < max; i++) {
+    if (i < dramas.length) out.push(dramas[i])
+    if (i < dreams.length) out.push(dreams[i])
+  }
+  return out
+}
+
+async function loadEnt(append = false) {
+  if (entLoading.value) return
+  entLoading.value = true
+  try {
+    // 娱乐页只展示九部带封面视频的广播剧，不再混排无封面的梦境卡片。
+    // 一次取全（size=50），因此无需翻页；三个页签通过排序区分。
+    const sort = entTab.value === 'hot' ? 'hot' : 'newest'
+    const res = await fetchDramaList({ page: 1, size: 50, sort })
+    const data = (res && res.data) || {}
+    // 娱乐页只展示 7 部（对应已替换的 7 个新视频）；广播剧页仍展示全部 9 部，两页互不影响。
+    // 这里按标题白名单过滤，排除「时间旅人的信」「海边的旧信封」两部下线的剧。
+    const ENT_TITLES = ['雾港谜案', '晚风寄来的情书', '星轨之外', '猫咪咖啡馆的午后', '长安月明', '会发光的小怪兽', '第七次钟声']
+    const filtered = (data.list || []).filter(d => ENT_TITLES.includes(d.title))
+    entList.value = filtered.map(mapDrama)
+    entHasMore.value = false
+    entDramaHasMore.value = false
+    entDreamHasMore.value = false
+    isDemo.value = false
+    entLoadedOnce.value = true
+  } catch (e) {
+    if (e && e.isNetwork) {
+      enterDemo()
+    } else {
+      handleError(e)
+    }
+  } finally {
+    entLoading.value = false
+  }
+}
+
+/** 关注 / 取关：记录作者名，关注页据此过滤 */
+function toggleFollow(item) {
+  if (!item || isSelfItem(item)) return
+  const name = item.authorName
+  if (follows.value.includes(name)) {
+    follows.value = follows.value.filter(n => n !== name)
+    flash(`已取消关注 ${name}`)
+  } else {
+    follows.value = follows.value.concat(name)
+    flash(`已关注 ${name}，TA 的新内容会出现在「关注」页 ✦`)
+  }
+  persistFollows()
+  if (entTab.value === 'follow') loadEnt(false)
+}
+
+/** 娱乐卡片点击：剧 → 沉浸竖滑流；梦 → 详情弹层 */
+function openEntItem(item) {
+  if (!item) return
+  if (item.kind === 'drama') openPlayer(item)
+  else if (item.ref) openDetail(item.ref)
+  else openDetail(item)
+}
+
+/** 从瀑布流点开某条剧：进入竖滑流并定位到这一条 */
+async function openPlayer(item) {
+  const idx = entList.value.findIndex(x => x.uid === item.uid)
+  feedStart.value = idx >= 0 ? idx : 0
+  feedOpen.value = true
+  // 详情接口：让后端浏览量 +1，并把最终可用的播放地址同步回列表
+  try {
+    const res = await fetchDramaDetail({ id: item.id })
+    const data = (res && res.data) || {}
+    const target = entList.value.find(x => x.uid === item.uid)
+    if (target) {
+      target.videoUrl = data.videoUrl || item.videoUrl
+      target.views = data.views != null ? data.views : item.views
+    }
+  } catch (_) { /* 播放地址用列表里那份兜底 */ }
+}
+
+/** 直接进入沉浸模式：从第一条剧开始上下刷 */
+function openImmersive() {
+  if (!entList.value.length) return
+  const first = entList.value.findIndex(x => x.kind === 'drama')
+  feedStart.value = Math.max(first, 0)
+  feedOpen.value = true
+}
+
+function closeFeed() {
+  // 若处于浏览器全屏，先退出，避免关闭后仍停留全屏态
+  if (document.fullscreenElement) {
+    document.exitFullscreen && document.exitFullscreen().catch(() => {})
+  }
+  feedOpen.value = false
+  const wrap = feedWrap.value
+  if (wrap) wrap.querySelectorAll('video').forEach(v => v.pause())
+}
+
+/** 沉浸刷剧：切换浏览器全屏（隐藏地址栏，真正占满屏幕） */
+async function toggleFeedFullscreen() {
+  const el = feedFull.value
+  if (!el) return
+  try {
+    if (!document.fullscreenElement) {
+      if (el.requestFullscreen) await el.requestFullscreen()
+      else flash('当前浏览器不支持全屏')
+    } else {
+      if (document.exitFullscreen) await document.exitFullscreen()
+    }
+  } catch (_) {
+    flash('全屏切换失败，请检查浏览器设置')
+  }
+}
+
+/** 同步浏览器全屏状态到 UI（点击按钮、按 Esc 退出全屏都会触发） */
+function onFullscreenChange() {
+  isFeedFullscreen.value = !!document.fullscreenElement
+}
+
+/** 沉浸刷剧：返回娱乐页（关闭全屏并确保停留在娱乐视图） */
+function backToEntertainment() {
+  view.value = 'profile'
+  closeFeed()
+}
+
+/* ---- 竖滑流核心：scroll-snap 负责滚轮/触摸吸附，这里管定位、键盘、自动播放 ---- */
+function feedScrollTo(i) {
+  const wrap = feedWrap.value
+  if (!wrap) return
+  const el = wrap.querySelectorAll('.ks-slide')[i]
+  if (el) wrap.scrollTo({ top: el.offsetTop, behavior: 'smooth' })
+}
+
+function feedStep(dir) {
+  const wrap = feedWrap.value
+  if (!wrap) return
+  const slides = wrap.querySelectorAll('.ks-slide')
+  const cur = Math.round(wrap.scrollTop / (wrap.clientHeight || 1))
+  feedScrollTo(Math.min(Math.max(cur + dir, 0), slides.length - 1))
+}
+
+function onFeedKey(e) {
+  if (!feedOpen.value) return
+  if (e.key === 'Escape') { closeFeed(); return }
+  if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); feedStep(1) }
+  if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); feedStep(-1) }
+}
+
+/** 打开时定位到起始条并立即播放 */
+function setupFeedObserver() {
+  const wrap = feedWrap.value
+  if (!wrap) return
+  const start = wrap.querySelectorAll('.ks-slide')[feedStart.value]
+  if (start) wrap.scrollTop = start.offsetTop
+  ensureCurrentPlaying()
+}
+
+/** 滑到快到底时静默加载下一页；吸附停止后兜底确保当前条在播 */
+let feedScrollTimer = null
+function onFeedScroll() {
+  const wrap = feedWrap.value
+  if (!wrap || !feedOpen.value) return
+  if (entHasMore.value &&
+      wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < wrap.clientHeight * 1.5) {
+    entLoadMore()
+  }
+  clearTimeout(feedScrollTimer)
+  feedScrollTimer = setTimeout(ensureCurrentPlaying, 300)
+}
+
+/** 按滚动位置精确定位当前条：只播它，其余全部暂停 */
+function ensureCurrentPlaying() {
+  const wrap = feedWrap.value
+  if (!wrap || !feedOpen.value) return
+  const idx = Math.round(wrap.scrollTop / (wrap.clientHeight || 1))
+  wrap.querySelectorAll('.ks-slide').forEach((el, i) => {
+    const v = el.querySelector('video')
+    if (!v) return
+    if (i === idx) v.play().catch(() => {})
+    else if (!v.paused) v.pause()
+  })
+}
+
+/** 点击画面：暂停 / 继续播放 */
+function tapSlide(e) {
+  const v = e.currentTarget.parentElement.querySelector('video')
+  if (!v) return
+  if (v.paused) v.play().catch(() => {})
+  else v.pause()
+}
+
+watch(feedOpen, open => {
+  if (open) {
+    nextTick(setupFeedObserver)
+    document.addEventListener('keydown', onFeedKey)
+  } else {
+    document.removeEventListener('keydown', onFeedKey)
+  }
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onFeedKey)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  clearTimeout(feedScrollTimer)
+})
+
+function sharePlayer() {
+  const url = window.location.href
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(
+      () => flash('链接已复制，快去分享吧 ✦'),
+      () => flash('复制失败，请手动复制地址栏链接')
+    )
+  } else {
+    flash('请手动复制地址栏链接分享')
+  }
+}
+
+/** 娱乐流点赞：梦境走后端接口；广播剧暂无点赞接口，本地切换仅作展示 */
+function entLike(item) {
+  if (!item) return
+  if (item.kind === 'drama') {
+    item.liked = !item.liked
+    item.likes = Math.max((item.likes || 0) + (item.liked ? 1 : -1), 0)
+    flash(item.liked ? '已点赞 ✦' : '已取消点赞')
+    return
+  }
+  likeDream(item.ref || item)
+}
 
 /* 主列表区在三种视图间复用同一套卡片模板 */
 const displayList = computed(() => {
   if (view.value === 'favorites') return favorites.value
-  if (view.value === 'profile') return myDreams.value
   return showAnime.value ? animeChars : feed.value
 })
 const displayLoading = computed(() => {
   if (view.value === 'favorites') return loadingFav.value
-  if (view.value === 'profile') return loadingMine.value
+  if (view.value === 'profile') return entLoading.value
   return showAnime.value ? false : loadingFeed.value
 })
 const displayHasMore = computed(() => {
   if (view.value === 'favorites') return favHasMore.value
-  if (view.value === 'profile') return myHasMore.value
+  if (view.value === 'profile') return entHasMore.value
   return showAnime.value ? false : hasMore.value
 })
 
 const sectionTitle = computed(() => {
-  if (view.value === 'favorites') return '我的收藏'
-  if (view.value === 'profile') return '我的梦境'
+  if (view.value === 'favorites') return '励志问卷 · 20 道小题'
   return showAnime.value ? '动漫人物' : '梦境精选'
 })
 const sectionCount = computed(() => {
-  if (view.value === 'favorites') return `共 ${formatNum(favTotal.value)} 场梦`
-  if (view.value === 'profile') return `共 ${formatNum(myTotal.value)} 场梦`
+  if (view.value === 'favorites') return `已作答 ${answeredCount.value} / ${quizTotal} 题`
   return showAnime.value ? `共 ${animeChars.length} 位角色` : `共 ${formatNum(feedTotal.value)} 场梦`
 })
 const emptyText = computed(() => {
-  if (view.value === 'favorites') return '还没有收藏任何梦，点卡片右下角的书签把它收下来吧 ✦'
-  if (view.value === 'profile') return '你还没有记录过梦境，点上面的「写一场梦」开始吧 ✦'
+  if (view.value === 'favorites') return '还没有题目，稍后再来吧 ✦'
   return showAnime.value ? '这里还空空的，去收藏喜欢的角色吧 ✦' : '这里还空空的，去写下今晚的梦吧 ✦'
 })
 
@@ -561,6 +1136,58 @@ const DREAM_LIB = [
   { title: '深海星光浴', tag: '奇幻', desc: '潜入夜晚的海，水母提着灯，鱼群衔来碎银般的月光。' },
   { title: '四季茶馆', tag: '静谧', desc: '春天上花茶，冬天煮姜茶，掌柜的会听你讲完整个梦。' }
 ]
+
+// 演示模式（后端未启动）下娱乐页只展示这九部带封面视频的广播剧
+const LOCAL_DRAMA_META = {
+  '雾港谜案': ['潮水退去后，码头石阶上多了一枚没有主人的旧怀表。', '悬疑'],
+  '晚风寄来的情书': ['一封没有邮票的信，在三个人的抽屉里辗转了十年。', '治愈'],
+  '星轨之外': ['最后一艘方舟驶离地球时，她在舷窗上写下一个名字。', '科幻'],
+  '猫咪咖啡馆的午后': ['一只不爱说话的猫，治愈了所有推门进来的人。', '治愈'],
+  '长安月明': ['上元灯夜里，一位画师为素未谋面的女子画了一整面墙的月亮。', '古风'],
+  '会发光的小怪兽': ['夜里躲在被窝发光的它，其实只是想陪你一起怕黑。', '童话'],
+  '第七次钟声': ['钟楼每响一次，就有一个人忘记今天发生过的事。', '悬疑'],
+  '时间旅人的信': ['寄给十年前的自己，却先被十年后的人收下了。', '科幻'],
+  '海边的旧信封': ['退潮后沙滩上出现一只漂流瓶，里面是三十年前的告白。', '治愈'],
+  '古人闯现代': ['没人说他们也能来到现代呀——古人一觉醒来，闯进了灯红酒绿的都市。', '言情'],
+  '和平精英巅峰赛': ['PEL 赛场聚光灯亮起，选手登场，巅峰对决一触即发。', '科幻']
+}
+
+function localDramaCards() {
+  // id 取负数标记「非后端数据」；封面与视频均指向本地 public 素材，保证每张卡片有封面
+  return DRAMA_TITLES.map((title, i) => {
+    const [summary, category] = LOCAL_DRAMA_META[title] || ['', '广播剧']
+    return {
+      kind: 'drama',
+      uid: 'demo-drama-' + i,
+      id: -(i + 1),
+      title,
+      summary,
+      cover: coverImg(title),
+      category,
+      categoryCode: 'drama',
+      duration: '',
+      views: 0,
+      likes: 0,
+      liked: false,
+      authorName: DRAMA_AUTHOR,
+      avatarText: '粉',
+      platform: '',
+      // 娱乐页演示模式也用后端 /media/drama/ 下的 7 个新视频，与广播剧页的本地视频分开
+      videoUrl: '/media/drama/' + slugForTitle(title) + '.mp4',
+      tags: [category]
+    }
+  })
+}
+
+/** 标题 → 娱乐页新视频 slug（与后端 media/drama 下的 7 个文件对应） */
+function slugForTitle(title) {
+  const map = {
+    '雾港谜案': 'fog-harbor', '晚风寄来的情书': 'love-letter', '星轨之外': 'star-track',
+    '猫咪咖啡馆的午后': 'cat-cafe', '长安月明': 'changan-moon',
+    '会发光的小怪兽': 'glow-monster', '第七次钟声': 'seventh-bell'
+  }
+  return map[title] || 'fog-harbor'
+}
 
 function localCards() {
   // id 取负数：既有唯一 key，又能标记「非后端数据」，点赞/详情走本地逻辑
@@ -682,15 +1309,10 @@ function setSort(sort) {
   resetFeed()
 }
 
-/* ---- 我的收藏 ---- */
-async function openFavorites() {
-  if (isDemo.value) {
-    flash('演示模式下收藏不可用，请先启动后端服务')
-    return
-  }
+/* ---- 励志问卷 ---- */
+function openFavorites() {
+  // 励志问卷为纯前端内容，演示模式/后端模式均可直接作答，无需加载后端收藏
   view.value = 'favorites'
-  favPage.value = 1
-  await loadFavorites(false)
 }
 
 function backToFeed() {
@@ -721,15 +1343,27 @@ async function loadFavorites(append = false) {
   }
 }
 
+/** 娱乐流翻页：两路各自推进还有下一页的那一路 */
+function entLoadMore() {
+  if (entLoading.value || !entHasMore.value) return
+  if (entDramaHasMore.value) entDramaPage.value += 1
+  if (entDreamHasMore.value) entDreamPage.value += 1
+  loadEnt(true)
+}
+
 /** 统一的「加载更多」入口：按当前视图决定翻哪一页 */
 function onLoadMore() {
+  if (view.value === 'profile') {
+    entLoadMore()
+    return
+  }
   if (view.value === 'favorites') {
     if (!favHasMore.value || loadingFav.value) return
     favPage.value += 1
     loadFavorites(true)
     return
   }
-  if (view.value === 'profile') {
+  if (meOpen.value) {
     if (!myHasMore.value || loadingMine.value) return
     myPage.value += 1
     loadMyDreams(true)
@@ -813,9 +1447,10 @@ function closeDetail() {
 
 /** 同步各处列表里的同一条内容（点赞、收藏、浏览量变化） */
 function syncCard(id, patch) {
-  ;[feed.value, results.value, hotRail.value, favorites.value].forEach(list => {
+  ;[feed.value, results.value, hotRail.value, favorites.value, entList.value].forEach(list => {
     list.forEach(item => {
       if (item.id === id) Object.assign(item, patch)
+      if (item.ref && item.ref.id === id) Object.assign(item.ref, patch)
     })
   })
 }
@@ -857,7 +1492,7 @@ async function favoriteDream(card) {
     const data = (res && res.data) || {}
     card.favorited = !!data.favorited
     syncCard(card.id, { favorited: card.favorited })
-    flash(data.favorited ? '已收进「我的收藏」✦' : '已取消收藏')
+    flash(data.favorited ? '已收进「励志」✦' : '已取消收藏')
     // 在收藏列表里取消收藏：立即把它移出列表，避免看起来"点了没反应"
     if (view.value === 'favorites' && !card.favorited) {
       favorites.value = favorites.value.filter(d => d.id !== card.id)
@@ -869,16 +1504,20 @@ async function favoriteDream(card) {
   }
 }
 
-/* ---- 个人中心：我的梦境 ---- */
-async function openProfile() {
-  if (isDemo.value) {
-    flash('演示模式下个人中心不可用，请先启动后端服务')
-    return
+/* ---- 「我」抽屉：打开时拉取统计数据与我的作品 ---- */
+function openMe() {
+  meOpen.value = true
+  if (!isDemo.value) {
+    loadProfile()
+    if (!myDreams.value.length) {
+      myPage.value = 1
+      loadMyDreams(false)
+    }
   }
-  view.value = 'profile'
-  myPage.value = 1
-  loadProfile()
-  await loadMyDreams(false)
+}
+
+function closeMe() {
+  meOpen.value = false
 }
 
 async function loadProfile() {
@@ -999,13 +1638,12 @@ async function saveEditor() {
   }
 }
 
-/** 写操作成功后刷新相关列表：个人中心重拉自己的数据，首页内容流一并刷新 */
+/** 写操作成功后刷新相关列表：「我」抽屉重拉自己的数据，娱乐流与首页内容流一并刷新 */
 async function refreshAfterWrite() {
-  if (view.value === 'profile') {
-    myPage.value = 1
-    loadProfile()
-    await loadMyDreams(false)
-  }
+  myPage.value = 1
+  loadProfile()
+  loadMyDreams(false)
+  if (entLoadedOnce.value && !isDemo.value) loadEnt(false)
   resetFeed()
 }
 
@@ -1029,6 +1667,7 @@ async function confirmDelete() {
     myTotal.value = Math.max(myTotal.value - 1, 0)
     feed.value = feed.value.filter(d => d.id !== card.id)
     favorites.value = favorites.value.filter(d => d.id !== card.id)
+    entList.value = entList.value.filter(d => d.id !== card.id || d.kind === 'drama')
     if (detail.value && detail.value.id === card.id) closeDetail()
     deleteTarget.value = null
     flash('这场梦已删除 ✦')
@@ -1056,7 +1695,7 @@ function onMenu(key) {
     return
   }
   if (key === 'favorites') { openFavorites(); return }
-  if (key === 'profile') { openProfile(); return }
+  if (key === 'profile') { openEntertainment(); return }
   flash('「帮助中心」页面建设中，敬请期待 ✦')
 }
 
@@ -1089,7 +1728,7 @@ function onShortcut(s) {
       openEditor(null)
       return
     case 'profile':
-      openProfile()
+      openMe()
       return
     default:
       flash(`「${s && s.title}」页面建设中，敬请期待 ✦`)
@@ -1107,6 +1746,7 @@ onMounted(() => {
   loadSiteConfig()
   loadOverview()
   loadFeed(false)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
 })
 </script>
 
@@ -1179,7 +1819,10 @@ onMounted(() => {
   font-size: 15px; color: #fff;
   background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
   box-shadow: 0 6px 14px rgba(233, 184, 95, .35);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .2s;
 }
+.avatar:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 8px 18px rgba(233, 184, 95, .5); }
 .nav-name {
   font-size: 13.5px; color: var(--ink); letter-spacing: .03em;
   max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1618,6 +2261,335 @@ onMounted(() => {
 .profile-desc { font-size: 12.5px; color: var(--muted); letter-spacing: .03em; }
 .profile-stats { margin-top: 16px; }
 
+/* ===== 娱乐页（快手式内容流） ===== */
+.ent-tabs {
+  display: flex; justify-content: center; align-items: center; gap: 4px;
+  width: fit-content; margin: 0 auto 22px;
+  padding: 5px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 10px 26px rgba(214, 158, 184, .18);
+}
+.ent-tab {
+  font-family: inherit; font-size: 14.5px; letter-spacing: .12em;
+  color: var(--muted); background: none; border: 0; cursor: pointer;
+  padding: 9px 26px; border-radius: 999px;
+  transition: color .2s, background .25s, transform .15s;
+}
+.ent-tab:hover { color: var(--ink); }
+.ent-tab.active {
+  color: #fff; font-weight: 700;
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 8px 18px rgba(233, 184, 95, .35);
+}
+/* 沉浸刷剧入口：金粉描边小胶囊 */
+.ent-immersive {
+  display: flex; align-items: center; gap: 5px;
+  font-family: inherit; font-size: 12px; letter-spacing: .08em;
+  color: var(--ink); cursor: pointer;
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  padding: 7px 14px; border-radius: 30px;
+  transition: transform .15s, color .2s, border-color .2s;
+  margin-left: 6px;
+}
+.ent-immersive svg { width: 14px; height: 14px; }
+.ent-immersive:hover {
+  transform: translateY(-1px); color: #d98aa9; border-color: #d98aa9;
+}
+.ent-empty {
+  text-align: center; padding: 60px 20px;
+  color: var(--muted); font-size: 14px; letter-spacing: .05em;
+}
+.ent-empty-sub { margin-top: 10px; font-size: 12.5px; color: var(--muted); opacity: .8; }
+
+.ent-waterfall {
+  columns: 3; column-gap: 16px;
+}
+.ks-card {
+  break-inside: avoid; margin-bottom: 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 18px; overflow: hidden;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 26px rgba(214, 158, 184, .16);
+  transition: transform .2s, box-shadow .2s;
+  animation: fadeUp .5s ease both;
+}
+.ks-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(214, 158, 184, .28); }
+.ks-cover {
+  position: relative; width: 100%; aspect-ratio: 4 / 3;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.ks-card .ks-cover { aspect-ratio: 3 / 4; }   /* 剧卡片：竖屏更像快手短剧封面 */
+.ks-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ks-duration {
+  position: absolute; right: 10px; bottom: 10px;
+  font-size: 11px; color: #fff; letter-spacing: .04em;
+  background: rgba(30, 18, 30, .55);
+  padding: 3px 9px; border-radius: 10px;
+  backdrop-filter: blur(4px);
+}
+.ks-info { padding: 12px 14px 13px; display: flex; flex-direction: column; gap: 8px; }
+.ks-title {
+  font-size: 14.5px; color: var(--ink); letter-spacing: .04em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ks-summary {
+  font-size: 12px; color: var(--muted); line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ks-meta { display: flex; align-items: center; gap: 8px; }
+.ks-author {
+  font-size: 12px; color: var(--muted); letter-spacing: .03em;
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ks-follow {
+  font-family: inherit; font-size: 11px; letter-spacing: .05em; cursor: pointer;
+  color: #fff; background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+  border: 0; padding: 4px 10px; border-radius: 12px;
+  flex: 0 0 auto; white-space: nowrap;
+  transition: transform .15s, filter .2s;
+}
+.ks-follow:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.ks-followed {
+  font-size: 11px; color: var(--muted); letter-spacing: .05em;
+  background: var(--field-bg); border: 1px solid var(--field-border);
+  padding: 3px 10px; border-radius: 12px;
+  flex: 0 0 auto; white-space: nowrap;
+}
+.ks-spacer { flex: 1; }
+.ks-like {
+  display: flex; align-items: center; gap: 4px;
+  font-family: inherit; font-size: 12px; color: var(--muted);
+  background: none; border: 0; cursor: pointer;
+  transition: color .2s, transform .15s;
+}
+.ks-like svg { width: 16px; height: 16px; }
+.ks-like:hover { color: #e5718c; transform: scale(1.06); }
+.ks-like.liked { color: #e5718c; }
+
+/* ===== 「我」抽屉（原个人中心） ===== */
+.me-mask {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(90, 52, 76, .32);
+  backdrop-filter: blur(5px);
+  animation: maskIn .25s ease both;
+}
+.me-drawer {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: min(460px, 100%);
+  background: var(--panel-bg);
+  border-left: 1px solid var(--card-border);
+  box-shadow: -18px 0 48px rgba(120, 70, 100, .28);
+  display: flex; flex-direction: column;
+  animation: drawerIn .3s ease both;
+}
+@keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.me-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--card-border);
+}
+.me-title { font-size: 18px; color: var(--ink); letter-spacing: .12em; font-weight: 700; }
+.me-body { flex: 1; overflow-y: auto; padding: 18px 22px 30px; }
+.me-write { width: 100%; margin-top: 16px; }
+.me-list-title {
+  margin-top: 24px; font-size: 14px; color: var(--ink); letter-spacing: .08em;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.me-list-title .count { font-size: 12px; color: var(--muted); }
+.me-dream-list { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.me-dream {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px; padding: 12px 14px;
+  transition: transform .15s, box-shadow .2s;
+}
+.me-dream:hover { transform: translateX(-2px); box-shadow: 0 8px 18px rgba(214, 158, 184, .18); }
+.me-dream-main { flex: 1; min-width: 0; cursor: pointer; display: flex; flex-direction: column; gap: 5px; }
+.me-dream-title {
+  font-size: 13.5px; color: var(--ink); letter-spacing: .03em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.me-dream-meta {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11.5px; color: var(--muted);
+}
+.me-dream-meta .foot-stat { display: flex; align-items: center; gap: 4px; }
+.me-dream-meta svg { width: 13px; height: 13px; }
+.me-dream-ops { display: flex; gap: 8px; }
+
+/* ===== 沉浸式竖滑播放流（快手式上下滑动） ===== */
+.ks-full {
+  position: fixed; inset: 0; z-index: 90;
+  background: #0c0710;
+  animation: maskIn .25s ease both;
+}
+.ks-full-body {
+  height: 100%; overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+.ks-full-body::-webkit-scrollbar { display: none; }
+.ks-slide {
+  position: relative;
+  height: 100%;
+  scroll-snap-align: start; scroll-snap-stop: always;
+  overflow: hidden;
+  background: #0c0710;
+}
+/* 封面做模糊底衬，16:9 视频居中时不至于大片黑底 */
+.ks-slide-bg {
+  position: absolute; inset: -30px;
+  background-size: cover; background-position: center;
+  filter: blur(26px) brightness(.5);
+  transform: scale(1.12);
+}
+.ks-slide-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: contain;
+}
+.ks-slide-tap {
+  position: absolute; inset: 0; z-index: 2;
+  background: transparent; border: 0; cursor: pointer;
+}
+.ks-slide-dream {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.ks-dream-img {
+  max-width: min(720px, 84vw); max-height: 72vh;
+  border-radius: 18px; object-fit: cover;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
+}
+.ks-dream-fallback {
+  width: 220px; height: 220px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 74px; color: #fff;
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+}
+
+.ks-full-close {
+  position: absolute; top: 18px; right: 18px; z-index: 4;
+  width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: rgba(255, 255, 255, .16); border: 0;
+  backdrop-filter: blur(6px);
+  transition: background .2s, transform .15s;
+}
+.ks-full-close:hover { background: rgba(255, 255, 255, .3); transform: rotate(90deg); }
+.ks-full-close svg { width: 18px; height: 18px; }
+
+.ks-full-fscreen {
+  position: absolute; top: 18px; right: 64px; z-index: 4;
+  width: 38px; height: 38px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; background: rgba(255, 255, 255, .16); border: 0;
+  backdrop-filter: blur(6px);
+  transition: background .2s;
+}
+.ks-full-fscreen:hover { background: rgba(255, 255, 255, .3); }
+.ks-full-fscreen svg { width: 18px; height: 18px; }
+
+.ks-full-back {
+  position: absolute; top: 18px; left: 18px; z-index: 4;
+  display: flex; align-items: center; gap: 5px;
+  height: 38px; padding: 0 14px 0 10px; border-radius: 30px; cursor: pointer;
+  color: #fff; font-size: 13px; letter-spacing: .03em;
+  background: rgba(255, 255, 255, .16); border: 0; backdrop-filter: blur(6px);
+  transition: background .2s;
+}
+.ks-full-back:hover { background: rgba(255, 255, 255, .3); }
+.ks-full-back svg { width: 18px; height: 18px; }
+
+.ks-swipe-hint {
+  position: absolute; left: 50%; top: 20px; z-index: 3;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255, 255, 255, .85); font-size: 12px; letter-spacing: .14em;
+  background: rgba(0, 0, 0, .38); padding: 7px 16px; border-radius: 30px;
+  pointer-events: none;
+  animation: hintFloat 2.4s ease-in-out infinite;
+}
+.ks-swipe-hint svg { width: 16px; height: 16px; }
+@keyframes hintFloat {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, 7px); }
+}
+
+.ks-full-end {
+  height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255, 255, 255, .55); font-size: 13px; letter-spacing: .1em;
+}
+
+.ks-rail {
+  position: absolute; right: 18px; bottom: 96px; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+.ks-rail-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 19px; color: #fff;
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  border: 2px solid rgba(255, 255, 255, .8);
+}
+.ks-rail-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  font-family: inherit; font-size: 11px; letter-spacing: .04em;
+  color: rgba(255, 255, 255, .92); background: none; border: 0; cursor: pointer;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+  transition: transform .15s, color .2s;
+}
+.ks-rail-btn svg { width: 30px; height: 30px; }
+.ks-rail-btn:hover { transform: scale(1.08); }
+.ks-rail-btn.active { color: var(--gold-3); }
+.ks-rail-btn.heart.liked { color: #ff5f7a; }
+
+.ks-slide-info {
+  position: absolute; left: 26px; right: 110px; bottom: 92px; z-index: 3;
+  color: rgba(255, 255, 255, .92);
+  display: flex; flex-direction: column; gap: 7px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .55);
+}
+.ks-player-author { font-size: 15px; font-weight: 700; letter-spacing: .04em; }
+.ks-player-title { font-size: 14px; line-height: 1.7; letter-spacing: .03em; }
+.ks-player-summary {
+  font-size: 12.5px; line-height: 1.8; color: rgba(255, 255, 255, .72);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ks-player-tags { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12.5px; color: rgba(255, 255, 255, .75); }
+.ks-player-meta { font-size: 12px; color: rgba(255, 255, 255, .6); letter-spacing: .04em; }
+
+@media (max-width: 900px) {
+  .ent-waterfall { columns: 2; column-gap: 10px; }
+  .ks-card { margin-bottom: 10px; border-radius: 14px; }
+  .ks-info { padding: 10px 11px 11px; }
+  .ks-summary { display: none; }
+  .ks-rail { right: 10px; bottom: 120px; gap: 12px; }
+  .ks-rail-avatar { width: 40px; height: 40px; font-size: 16px; }
+  .ks-rail-btn svg { width: 24px; height: 24px; }
+  .ks-rail-btn { font-size: 10px; }
+  .ks-slide-info { left: 16px; right: 66px; bottom: 84px; }
+  .ks-player-summary { -webkit-line-clamp: 2; }
+  .ks-full-close { top: 12px; right: 12px; }
+  .ks-full-fscreen { top: 12px; right: 58px; width: 34px; height: 34px; }
+  .ks-full-fscreen svg { width: 16px; height: 16px; }
+  .ks-full-back { top: 12px; left: 12px; height: 34px; padding: 0 12px 0 8px; font-size: 12px; }
+  .me-drawer { width: 100%; }
+}
+
 /* ===== 创作 / 编辑弹层 ===== */
 .editor-mask {
   position: fixed; inset: 0; z-index: 65;
@@ -1711,7 +2683,7 @@ onMounted(() => {
   background: rgba(201, 138, 166, .95); color: #fff;
   padding: 11px 22px; border-radius: 30px;
   font-size: 14px; letter-spacing: .05em; opacity: 0; pointer-events: none;
-  transition: opacity .3s, transform .3s; z-index: 70;
+  transition: opacity .3s, transform .3s; z-index: 100;
   box-shadow: 0 10px 30px rgba(201, 138, 166, .4);
   max-width: 90vw; text-align: center;
 }
@@ -1721,7 +2693,7 @@ onMounted(() => {
 @media (max-width: 760px) {
   .nav-menu, .nav-name { display: none; }
   .navbar { gap: 10px; }
-  .content { padding-top: 104px; }
+  .content { padding-top: 104px; padding-bottom: 84px; }
   .hero { padding-top: 26px; }
   .hero-title { font-size: 32px; }
   .stats { grid-template-columns: repeat(2, 1fr); }
@@ -1732,6 +2704,39 @@ onMounted(() => {
   .field-row { grid-template-columns: 1fr; }
   .editor-panel { padding: 20px 18px 22px; }
   .confirm-panel { padding: 22px 20px 18px; }
+}
+
+/* 移动端底部 Tab 栏（桌面隐藏） */
+.mobile-tabbar { display: none; }
+@media (max-width: 760px) {
+  .mobile-tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 42;
+    display: flex; align-items: stretch; justify-content: space-around;
+    height: 58px; padding-bottom: env(safe-area-inset-bottom, 0);
+    background: var(--panel-bg);
+    border-top: 1px solid var(--card-border);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 -8px 24px rgba(120, 70, 100, .12);
+  }
+  .mtab {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: 0; cursor: pointer;
+    font-family: inherit; font-size: 10.5px; letter-spacing: .05em;
+    color: var(--muted);
+    transition: color .2s, transform .15s;
+  }
+  .mtab svg { width: 21px; height: 21px; }
+  .mtab.active { color: var(--ink); font-weight: 700; }
+  .mtab.active svg { color: #d98aa9; }
+  .mtab:active { transform: scale(.94); }
+  /* 手机屏幕窄：互动栏叠在视频内右侧，避免出屏 */
+  .ks-player-box { width: calc(100vw - 24px); }
+  .ks-rail {
+    right: 8px; top: 50%; bottom: auto; transform: translateY(-50%); gap: 12px;
+  }
+  .ks-rail-avatar { width: 38px; height: 38px; font-size: 15px; }
+  .ks-rail-btn svg { width: 23px; height: 23px; }
+  .ks-rail-btn { font-size: 10px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1817,5 +2822,95 @@ onMounted(() => {
 .home-stage.dreamy .toast {
   background: rgba(79, 138, 102, .95);
   box-shadow: 0 10px 30px rgba(79, 138, 102, .4);
+}
+
+/* ===== 励志问卷 ===== */
+.quiz-wrap { margin-top: 4px; }
+.quiz-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 18px; margin-bottom: 16px;
+  background: linear-gradient(120deg, rgba(127, 179, 154, .14), rgba(217, 194, 122, .16));
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+}
+.quiz-banner-tip { font-size: 13.5px; color: var(--ink); letter-spacing: .03em; }
+.quiz-reset {
+  flex: 0 0 auto; padding: 6px 14px; border-radius: 18px; cursor: pointer;
+  font-size: 12.5px; color: var(--grad-b); background: var(--card-bg);
+  border: 1px solid var(--gold-2); transition: transform .2s, background .2s;
+}
+.quiz-reset:hover { transform: translateY(-1px); background: rgba(217, 194, 122, .18); }
+.quiz-done {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 14px 18px; margin-bottom: 16px; border-radius: 14px;
+  font-size: 14px; font-weight: 600; color: var(--ink);
+  background: linear-gradient(120deg, rgba(127, 179, 154, .22), rgba(217, 194, 122, .28));
+  border: 1px solid var(--gold-2);
+  animation: quizPop .45s ease both;
+}
+.quiz-done-star { color: var(--grad-b); font-size: 18px; }
+@keyframes quizPop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+
+.quiz-list { display: grid; gap: 16px; }
+.quiz-card {
+  padding: 18px 20px 16px; border-radius: 16px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 22px rgba(214, 158, 184, .16);
+  transition: box-shadow .2s;
+}
+.quiz-card:hover { box-shadow: 0 12px 28px rgba(214, 158, 184, .26); }
+.quiz-q-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.quiz-no {
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+  box-shadow: 0 4px 10px rgba(217, 194, 122, .35);
+}
+.quiz-q-text { flex: 1; font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.6; }
+.quiz-q-state {
+  flex: 0 0 auto; font-size: 11.5px; color: var(--muted);
+  padding: 3px 10px; border-radius: 12px; background: var(--field-bg);
+}
+.quiz-q-state.done { color: var(--link); background: rgba(127, 179, 154, .16); }
+.quiz-options { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.quiz-opt {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 11px 13px; border-radius: 12px; cursor: pointer;
+  font-size: 13.5px; line-height: 1.55; color: var(--ink);
+  background: var(--field-bg); border: 1px solid var(--field-border);
+  transition: transform .18s, border-color .18s, background .18s, box-shadow .18s;
+}
+.quiz-opt:hover { transform: translateY(-2px); border-color: var(--gold-2); box-shadow: 0 8px 18px rgba(214, 158, 184, .2); }
+.quiz-opt.picked {
+  border-color: var(--grad-a);
+  background: linear-gradient(120deg, rgba(127, 179, 154, .2), rgba(217, 194, 122, .18));
+  box-shadow: 0 6px 16px rgba(127, 179, 154, .28);
+}
+.quiz-opt-key {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--grad-b);
+  background: rgba(217, 194, 122, .16); border: 1px solid var(--gold-2);
+}
+.quiz-opt.picked .quiz-opt-key { color: #fff; background: var(--grad-a); border-color: var(--grad-a); }
+.quiz-opt-text { flex: 1; }
+.quiz-feedback {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border);
+  font-size: 12.5px; animation: quizPop .3s ease both;
+}
+.quiz-ok-badge {
+  padding: 3px 10px; border-radius: 12px; font-weight: 600; color: #fff;
+  background: linear-gradient(120deg, var(--grad-a), var(--grad-b));
+}
+.quiz-picked { color: var(--muted); }
+
+@media (max-width: 760px) {
+  .quiz-options { grid-template-columns: 1fr; }
+  .quiz-banner { flex-direction: column; align-items: flex-start; }
+  .quiz-card { padding: 15px 14px 13px; }
+  .quiz-q-head { gap: 9px; }
 }
 </style>

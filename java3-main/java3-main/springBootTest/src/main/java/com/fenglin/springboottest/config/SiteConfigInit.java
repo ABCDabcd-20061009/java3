@@ -75,13 +75,13 @@ public class SiteConfigInit implements ApplicationRunner {
         return Arrays.asList(
                 // ---- 导航菜单 nav_menu（5 条）----
                 nav("square", "动漫人物", "square", 1),
-                nav("favorites", "我的收藏", "favorites", 2),
-                nav("profile", "我的梦境", "profile", 3),
+                nav("favorites", "励志", "favorites", 2),
+                nav("profile", "娱乐", "profile", 3),
                 nav("drama", "广播剧", "drama", 4),
                 nav("help", "帮助中心", "help", 5),
                 // ---- 快捷入口 shortcut（5 条）----
                 shortcut("write_dream", "写一场梦", "把昨夜的梦记录下来", "edit", "profile", 1),
-                shortcut("go_favorites", "我的收藏", "回头看看收藏的梦", "heart", "favorites", 2),
+                shortcut("go_favorites", "励志", "收藏激励自己的梦", "fire", "favorites", 2),
                 shortcut("go_drama", "广播剧", "戴上耳机听一场梦", "play", "drama", 3),
                 shortcut("go_square", "动漫人物", "看看喜欢的动漫角色", "star", "square", 4),
                 shortcut("go_profile", "个人中心", "我的创作与数据", "user", "profile", 5),
